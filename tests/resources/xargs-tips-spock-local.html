@@ -1,0 +1,63 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>Xargs tips</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<!-- entry begin -->
+<h3><a class="ablack" href="xargs-tips.html">
+Xargs tips
+</a></h3>
+<!-- bashblog_timestamp: #201808312227.12# -->
+<div class="subtitle">August 31, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+<p>After 12 years being a Windows admin, I've now used powershell more than other
+languages so I'm pretty fluent in it's syntax. So it makes me happy when I
+stumble upon bash/linux scripting paradigms which have been brought over to
+powershell.</p>
+<hr />
+<p>It's great to see the inspiration powershell has gained from
+Unix systems and also great that it makes it easier for me to remember.</p>
+<p>One paradigm I that I wished bash/*nix had is the <code>Foreach-Object</code> command.
+It makes working on collections of objects a breeze. I often find myself
+scratching my head when trying similar tasks on *nix. Enter <code>xargs</code></p>
+<p>Take this simple situation: I have a directory and I want to delete everything
+bar a single .config file.</p>
+<pre><code>$ ls -a
+.   blog.css  .entry-23032.md      .footer.html  main.css
+..  .config   .entry-23032.md.swp  .header.html  .title.html
+</code></pre>
+<p>My powershell brain wants to:</p>
+<pre><code>$ gci | ? Name -ne '.config' | foreach-object { ri $_ }
+</code></pre>
+<p>On *nix, Xargs is a bit like adding pipeline input to rm</p>
+<pre><code>$ ls -a | grep -v '\.config' | xargs rm $_
+</code></pre>
+<p>The beauty of this is that the default item variable for xargs is <code>$_</code> which is exactly
+what powershell uses in a foreach-object loop.</p>
+<p>Of coarse the powershell line could be a bit shorter</p>
+<pre><code>$ gci | ? Name -ne '\.config' | ri
+</code></pre>
+<p>If you have any comments or feedback, please <a href="mailto:jesse@zigford.org">email</a> me
+and let me know if you will allow your feedback to be posted here.</p>
+<p>Tags: <a href='tag_bash-v-powershell.html'>bash-v-powershell</a>, <a href='tag_xargs.html'>xargs</a>, <a href='tag_bash.html'>bash</a>, <a href='tag_powershell.html'>powershell</a></p>
+
+<!-- text end -->
+<!-- entry end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>Compiling VIM on Ubuntu with WSL</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<!-- entry begin -->
+<h3><a class="ablack" href="compiling-vim-on-ubuntu-with-wsl.html">
+Compiling VIM on Ubuntu with WSL
+</a></h3>
+<!-- bashblog_timestamp: #201805212155.32# -->
+<div class="subtitle">May 21, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+<p>As a Windows Admin by day, but a longtime vim and linux user, I've flocked to
+Microsoft's <a href="https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux">WSL</a>
+like a moth to the flame. </p>
+<p>Being a heavy vim user with a distaste for tmux (due to the incompatible
+keybindings, PS, I know they can be changed to somewhat match vim), I was very
+excited to hear about vim's new terminal feature in version 8.1!! I immediatley
+installed the latest vim in Windows and it's cool. However I want a matching
+linux version in the WSL, so I thought I'd write this quick article on compiling
+for Ubuntu 18.04.</p>
+<h1>Preperation</h1>
+<p>You will need to install a few dev packages and build tools 
+before we get started. The WSL file-system isn't known for
+it's speed, so do this prep work in the background while doing
+something else.</p>
+<p><em>Note, this build is doesn't contain any
+requiremnts to build with the gui. If your looking for that, 
+try <a href="https://github.com/Valloric/YouCompleteMe/wiki/Building-Vim-from-source">here</a></em></p>
+<p><code>sudo apt-get update sudo apt-get install libncurses5-dev libatk1.0-dev python3-dev ruby-dev lua5.3-0 lua5.3-dev libperl-dev git build-essential</code></p>
+<p>Clone the vim source tree </p>
+<p><code>mkdir src cd src git clone https://github.com/vim/vim</code></p>
+<p>Configure the source </p>
+<p><code>./configure --with-compiledby="${USER}@$(hostname)" --enable-terminal --enable-python3interp --enable-perlinterp --enable-luainterp --disable-gui make</code></p>
+<p>Install vim </p>
+<p><code>sudo make install</code></p>
+<p>Now go off into the sunset and happily vim.</p>
+
+
+
+
+
+
+
+
+
+<!-- text end -->
+<!-- entry end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

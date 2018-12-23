@@ -1,0 +1,108 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>ANSI VT100 colors in Powershell Core prompt</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<!-- entry begin -->
+<h3><a class="ablack" href="ansi-vt100-colors-in-powershell-core-prompt.html">
+ANSI VT100 colors in Powershell Core prompt
+</a></h3>
+<!-- bashblog_timestamp: #201810192238.23# -->
+<div class="subtitle">October 19, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+<p>Sometime ago I was searching the interwebs for inspiration to spruce up my
+powershell prompt. I came across someone's prompt they shared on 
+<a href="https://stackoverflow.com">stackoverflow</a> or <a href="https://superuser.com">superuser</a> and unfortunatly I could not find the link
+again to give proper credit.</p>
+<hr />
+<p>Today, I'm essentially using the same prompt but I've had to adjust it to work
+on <a href="windows.html">Windows</a> and <a href="macos.html">MacOS</a> with the two areas of compatability being that
+Windows uses backslash <code>\</code> and Unixes like <a href="gnu-linux.html">GNU/Linux</a> and MacOS use
+forwardslash <code>/</code>.</p>
+<p>With Windows powershell, in order to get colorized text, you had to use the 
+<code>Write-Host</code> commandlet, but when switching to PSCore, the same code produced
+strange results. Initially the prompt would look fine, but if you were in a
+deep path, as soon as you typed a key, much of the prompt would be overwritten
+or word or some letters would be duplicated.</p>
+<p>After a bit of research I found the Windows Console had had VT100 escape
+sequence support added. You could, in theory, enable any Windows 10 1607+ 
+console to support VT100, but you would need to use the WinAPI
+<a href="https://docs.microsoft.com/en-us/windows/console/setconsolemode">SetConsoleMode</a></p>
+<p>It turns out, that PSCore on Windows, does this very thing, and so without any
+extra work, VT100 escape sequences work out of the box on this.</p>
+<pre><code>    function ConvertTo-ShortPath {
+        Param([string]$Path)
+        # Replace Home with ~ symbol
+        $Location = $Path.Replace($HOME, '~')
+        # Remove prefix for UNC paths
+        $Location = $Location -replace '^[^:]+::', ''
+        # Handle paths starting with \\ and . correctly
+        # For paths not the current directory, display only a single
+        #   character for each directory in the tree
+        If ($IsMacOS -or $IsLinux) {
+            # Systems with / paths 
+            $Location = $Location -replace '(.?)([^/])[^/]*(?=/)','$1$2'
+        } else {
+            # Systems with \ paths
+            $Location = $Location -replace '\\(\.?)([^\\])[^\\]*(?=\\)','\$1$2'
+        }
+        return $Location
+    }
+
+    function prompt {
+        If ($PSEdition -eq "Core") {
+            $BC = "`e[96m" #Bright Cyan
+            $C = "`e[36m" #Cyan
+            $G = "`e[32m" #Green
+            $N = "`e[0m" #No Color
+        } else {
+            $C = [ConsoleColor]::DarkCyan
+            $G = [ConsoleColor]::Green
+            $BC = [ConsoleColor]::Cyan
+        }
+
+        $root = [char]0x0E3
+        $nonroot = [char]0x0A7
+        $H = $([net.dns]::GetHostName())
+
+        if (Test-CurrentAdminRights) {
+            $priv = $root
+        } else {
+            $priv = $nonroot
+        }
+
+        if ($PSEdition -eq "Core"){
+            # PSCore doesn't like a prompt using Write-Host
+            #   thankfully, using VT100 signals works fine
+            "${BC}${priv} $G$H $C{ $BC$(ConvertTo-ShortPath ((pwd).Path)) $C }$N "
+        } else {
+            Write-Host "$priv " -NoNewline -ForegroundColor $BC
+            Write-Host $H -NoNewline -ForegroundColor $G
+            Write-Host ' {' -NoNewline -ForegroundColor $C
+            Write-Host (ConvertTo-ShortPath (pwd).Path) -NoNewline -ForegroundColor $BC
+            Write-Host '}' -NoNewline -ForegroundColor $C
+            return ' '
+        }
+    }
+</code></pre>
+<p>Tags: <a href='tag_vt100.html'>vt100</a>, <a href='tag_powershell.html'>powershell</a>, <a href='tag_profile.html'>profile</a></p>
+<!-- text end -->
+<!-- entry end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

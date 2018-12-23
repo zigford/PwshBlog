@@ -1,0 +1,39 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>zigford.org &mdash; Posts tagged "pscore"</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<h3><a class="ablack" href="win32-openssh-package.html">
+Win32 OpenSSH Package
+</a></h3>
+<!-- bashblog_timestamp: #201808140553.41# -->
+<div class="subtitle">August 14, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+<h4>Update 20/09/2018</h4>
+<p>Updated the script to UseBasicParsing so it works on Server core out of the box.
+Also, if you have to allow the port on Windows Firewall:</p>
+<p><code>New-NetFirewallRule -DisplayName "Allow SSH" -Direction Inbound -LocalPort 22 -Protocol TCP -Action Allow</code></p>
+<h4>Update 11/09/2018</h4>
+<p>I've made a copy of this <a href="scripts.html">script</a> which downloads the dependencies (including
+PSCore. Also of note, on a machine I ran it on, I had to set the allowed .Net
+TLS modes before it would let me download from github.</p>
+<p><code>[Net.ServicePointManager]::SecurityProtocol = "tls12, tls11, tls"</code> </p>
+<p class="readmore"><a href="./win32-openssh-package.html">Read more...</a></p>
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

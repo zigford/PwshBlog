@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>Write-Information > Write-Host</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<!-- entry begin -->
+<h3><a class="ablack" href="write-information--write-host.html">
+Write-Information > Write-Host
+</a></h3>
+<!-- bashblog_timestamp: #201809060849.36# -->
+<div class="subtitle">September 06, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+
+<p>June Blender writing for <a href="https://blogs.technet.microsoft.com/heyscriptingguy/2015/07/04/weekend-scripter-welcome-to-the-powershell-information-stream/">Hey, Scripting Guy! Blog</a>:</p>
+
+<blockquote>
+  <p>The dilemma was how to fix the harmful aspects of Write-Host (can't suppress,
+capture, or redirect), but keep it from polluting the output stream. And of
+course, the solution must be backward compatible.</p>
+
+<p>This most elegant solution is provided by the information stream and the
+Write-Information cmdlet. The information stream is a new output stream that
+works much like the error and warning streams.</p>
+</blockquote>
+
+<p>The information stream is a feature of powershell versions 5.x that I missed
+when it came out. Thus I have been avoiding using Write-Host in favour of
+Write-Verbose since reading about <a href="http://www.jsnover.com/blog/2013/12/07/write-host-considered-harmful/">Write-Host Considered Harmful</a>.</p>
+
+<p>If you care about writing reusable automation friendly code, go have a read.</p>
+
+<p>Tags: <a href='tag_powershell.html'>powershell</a>, <a href='tag_streams.html'>streams</a></p>
+
+
+
+
+<!-- text end -->
+<!-- entry end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

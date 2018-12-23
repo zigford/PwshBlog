@@ -1,0 +1,87 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>Downgrade Gentoo from testing to stable</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<!-- entry begin -->
+<h3><a class="ablack" href="downgrade-gentoo-from-testing-to-stable.html">
+Downgrade Gentoo from testing to stable
+</a></h3>
+<!-- bashblog_timestamp: #201808051006.29# -->
+<div class="subtitle">August 05, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+
+<p>At some point in my main Gentoo boxes life I added the ~amd64 keyword into 
+my make.conf. I don't remeber why I did this, but I can't think of a reason
+I need my entire install to be bleeding edge.</p>
+
+<p>I did some googling around on the best approach to achieve this and from
+what I read on forums, having a bunch of testing packages downgrade to 
+stable is not such a good idea. </p>
+
+<p>One reason might be that per app config files are usually only designed to 
+be backward compatible, not forward compatible.</p>
+
+<p>At any rate, the idea is to gather a list of currently installed testing
+packages and add them to package.keywords for their current version.</p>
+
+<p>With this method, eventually those packages will become stable.</p>
+
+<p>The method I used is basically from the <a href="https://wiki.sabayon.org/index.php?title=HOWTO:_Switch_from_Test_to_Stable_Packages">sabayon wiki</a> with a few
+tweaks.</p>
+
+<ol>
+<li><p>First, edit make.conf ACCEPT_KEYWORDS to:</p>
+
+<pre><code>ACCEPT_KEYWORDS=amd64
+</code></pre></li>
+<li><p>Now use equery, sed and grep to construct a new packge.keywords</p>
+
+<pre><code>equery -C -N list -F '=$cpv $mask2' '*' | \
+    grep \~ | sed 's/\[~amd64 keyword\]/~amd64/' &gt; \
+    /etc/portage/package.keywords/testpackages
+</code></pre>
+
+<p><em>Basically I added '-C' to remove colours and grep</em></p></li>
+<li><p>Examine testpackages for sanity, and then test with a world upgrade.</p>
+
+<pre><code>emerge --ask --update --newuse --deep --with-bdeps=y @world
+
+
+These are the packages that would be merged, in order:
+
+
+Calculating dependencies... done!
+
+
+Nothing to merge; quitting.
+</code></pre></li>
+</ol>
+
+<p>Tags: <a href='tag_gentoo.html'>gentoo</a>, <a href='tag_portage.html'>portage</a></p>
+
+
+
+
+
+
+<!-- text end -->
+<!-- entry end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>zigford.org &mdash; Posts tagged "cli"</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<h3><a class="ablack" href="ripping-an-album-from-youtube---cli-style.html">
+Ripping an album from youtube - CLI Style
+</a></h3>
+<!-- bashblog_timestamp: #201805282156.39# -->
+<div class="subtitle">May 28, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+
+<p>With the advent of <a href="https://www.spotify.com/">Spotify</a>, 
+<a href="https://www.apple.com/music">Apple Music</a>, <a href="https://youtube.com">Youtube</a>, 
+<a href="https://www.pandora.com">Pandora</a> and many other streaming music services, the 
+need to have local mp3 files doesn't crop up very often. However, my kids either
+have cheap mp3 players or use their 
+<a href="https://en.wikipedia.org/wiki/Nintendo_3DS">3ds's</a> to play local mp3 files.</p>
+
+<p>This post is a quick tip on ripping an album from youtube using a web browser and
+ a few cli apps. Remember, most tasks don't need a bloated gui to be done
+efficiently.</p>
+
+<h3>Requirement</h3>
+
+<ol>
+<li>A Web browser that can play youtube videos</li>
+<li><a href="http://rg3.github.io/youtube-dl/">Youtube-dl</a></li>
+<li>ffmpeg</li>
+<li>Bash</li>
+</ol>
+
+<h3>Prep work</h3>
+
+<h4>Install ffmpeg</h4>
+
+<p>Ubuntu</p>
+
+<pre><code>sudo apt-get install ffmpeg -y
+</code></pre>
+
+<p>Fedora</p>
+
+<pre><code>sudo yum install ffmpeg
+</code></pre>
+
+<p>Gentoo</p>
+
+<pre><code>sudo emerge ffmpeg
+</code></pre>
+
+<h4>Install Youtube-DL</h4>
+
+<p>If your on a Debian or Ubuntu flavor of linux</p>
+
+<pre><code>sudo apt-get install youtube-dl -y
+</code></pre>
+
+<p>Fedora </p>
+
+<pre><code>sudo yum install youtub-dl
+</code></pre>
+
+<p>On my favourite, Gentoo</p>
+
+<pre><code>pip3 install youtube-dl --user
+</code></pre>
+
+<h3>Download the album</h3>
+
+<p>At this point you have all the tools you need to get the job done. Have a browse
+around on youtube to find the album you want an offline copy of and copy the url of the page. Then from a
+command prompt:</p>
+
+<pre><code>mkdir ~/tmp
+cd ~/tmp
+youtube-dl -x --audio-format mp3 https://youtube.com/fullurltovideo
+</code></pre>
+
+<h3>Create a list file</h3>
+
+<p>While the audio file is downloading, your going to want to create a simple txt
+file which lists the tracks, titles and start and end timings. I simply fast
+forwarded through each track toward the end of the song and made note of the
+mintes and seconds. I created a file with each line representing a track in the album with the following details:</p>
+
+<p><em>Track Number</em>-<em>Track title</em>-<em>Start duration</em>-<em>End duration</em></p>
+
+<p>The durations are in the form of HH:MM:SS. Here is what my file looks like:</p>
+
+<pre><code>cat ~/tmp/list.txt
+01-The Greatest Show-00:0:00-5:08
+02-A Million Dreams-00:5:08-9:38
+03-A Million Dreams Reprise-00:9:39-10:38
+04-Come Alive-00:10:38-14:25
+05-The Other Side-00:14:25-17:58
+06-Never Enough-00:17:58-21:28
+07-This Is Me-00:21:38-25:23
+08-Rewrite the Stars-00:25:23-28:59
+09-Tightrope-00:28:59-32:50
+10-Never Enough (Reprise)-00:32:50-34:14
+11-From Now On-00:34:14-40:12
+</code></pre>
+
+<h3>Split the audio to seperate mp3's</h3>
+
+<p>Now that my file has finished downloading, I can convert the file into seperate
+song files
+Here is the little bash script I wrote to split the file based on the contents
+of the list.txt file</p>
+
+<pre><code>cat splitsong.sh
+#!/bin/bash
+
+while read -r p; do
+    TRACK=$(echo "$p" | awk -F- '{print $1}')
+    TITLE=$(echo "$p" | awk -F- '{print $2}')
+    START=$(echo "$p" | awk -F- '{print $3}')
+    END=$(echo "$p" | awk -F- '{print $4}')
+    FILENAME="${TRACK} - The Greatest Showman - ${TITLE}.mp3"
+    ffmpeg -i "$2" -acodec copy -ss "$START" -to "$END" "${FILENAME}" &lt; /dev/null
+done &lt;"$1"
+</code></pre>
+
+<p>I then execute the file like this:</p>
+
+<pre><code>chmod +x splitsong.sh
+./splitsong.sh list.txt 'Some Sound Track List-qDZLSHY1ims.mp3'
+</code></pre>
+
+<p>And the whole thing is over in a matter of seconds.</p>
+
+<p>Tags: <a href='tag_bash-tips.html'>bash-tips</a>, <a href='tag_mp3.html'>mp3</a>, <a href='tag_ffmpeg.html'>ffmpeg</a>, <a href='tag_cli.html'>cli</a>, <a href='tag_script.html'>script</a>, <a href='tag_youtube.html'>youtube</a>, <a href='tag_music.html'>music</a>, <a href='tag_linux.html'>linux</a></p>
+
+
+
+
+
+
+<!-- text end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>

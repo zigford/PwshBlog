@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="main.css" type="text/css" />
+<link rel="stylesheet" href="blog.css" type="text/css" />
+<link rel="alternate" type="application/rss+xml" title="Subscribe to this page..." href="feed.rss" />
+<title>zigford.org &mdash; Posts tagged "git"</title>
+</head><body>
+<div id="divbodyholder">
+<div class="headerholder"><div class="header">
+<div id="title">
+<h1 class="nomargin"><a class="ablack" href="http://zigford.org/index.html">zigford.org</a></h1>
+<div id="description"><a href="about.html">About</a><a href="links.html"> | Links</a><a href="scripts.html"> | Scripts</a><br>Sharing linux/windows scripts and tips</br></div>
+</div></div></div>
+<div id="divbody"><div class="content">
+<h3><a class="ablack" href="using-the-latest-vim-on-gentoo.html">
+Using the latest vim on Gentoo
+</a></h3>
+<!-- bashblog_timestamp: #201805221018.38# -->
+<div class="subtitle">May 22, 2018 &mdash; 
+Jesse Harris
+</div>
+<!-- text begin -->
+
+<p>Most people (including myself until recently), think of Gentoo as a bleeding 
+edge source distribution. This is pretty far from accurate as most packages 
+marked stable are quite out of date. And even if you decide to accept all 
+unstable packages by adding: </p>
+
+<pre><code>        ACCEPT_KEYWORKS="~amd64"
+</code></pre>
+
+<p>to your make.conf file, you will likely be a bit disappointed when you can't 
+get the latest gnome bits.</p>
+
+<p>As my last post indicated, I'm a bit of a vim user and I want to have the 
+latest vim on all my machines (Windows at work, WSL/Ubuntu 18.04 on the 
+Windows box, and Gentoo at home).
+To that end, here is the simple thing you need to do to get the latest Vim on 
+Gentoo:</p>
+
+<h1>Overview</h1>
+
+<ol>
+<li>Add a special keyword to vim's ACCEPT_KEYWORDS var</li>
+<li>Unmerge existing vim</li>
+<li>emerge the new vim</li>
+</ol>
+
+<h2>Keywords</h2>
+
+<p>Newer versions of portage allow <em>/etc/portage/package.keywords</em> to be a 
+directory with simple files so that you can seperate files for seperate
+packages. Now, lets check if it is a file or dir and convert it if it is 
+a directory.</p>
+
+<pre><code>    cd /etc/portage
+    if test -f package.keywords; then
+        mv package.keywords keywords
+        mkdir package.keywords
+        mv keywords package.keywords/
+    fi
+</code></pre>
+
+<p>And now, lets use the special keyword for the vim package which will
+allow ebuilds from github</p>
+
+<pre><code>    echo app-editors/vim "**" &gt; package.keywords/vim
+    echo app-editors/gvim "**" &gt;&gt; package.keywords/vim
+    echo app-editors/vim-core "**" &gt;&gt; package.keywords/vim
+</code></pre>
+
+<h2>Unmerge existing vim</h2>
+
+<pre><code>    emerge --unmerge app-editors/vim app-editors/gvim
+</code></pre>
+
+<h2>Merge the new vim</h2>
+
+<pre><code>    emerge app-editors/vim app-editors/gvim
+</code></pre>
+
+<h2>Final thoughts.</h2>
+
+<p>This is the way I did it, but thinking about it now, it may be unnessecary
+to unmerge vim. You could probably get away with running <em>emerge --update vim gvim</em></p>
+
+<p>Tags: <a href='tag_gentoo.html'>gentoo</a>, <a href='tag_vim.html'>vim</a>, <a href='tag_git.html'>git</a>, <a href='tag_ebuild.html'>ebuild</a></p>
+
+
+
+
+
+
+
+<!-- text end -->
+</div>
+<div id="footer">&copy <a href="http://twitter.com/zigford_org">Jesse Harris</a> &mdash; <a href="mailto:jesse&#64;zigford&#46;org">jesse&#64;zigford&#46;org</a><br/>
+Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>
+</div></div>
+</body></html>
