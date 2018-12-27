@@ -1,5 +1,7 @@
 #! /usr/bin/env pwsh
 
+$Script:global_config='.config'
+
 function Get-GlobalVariables {
     $Script:global_software_name='PwshBlog'
     $Script:global_software_version='0.1'
@@ -143,6 +145,78 @@ function Get-GlobalVariables {
     $Script:preview_url=""
 }
 
+function Test-GlobalVariables {
+    if ($Script:header_file -eq '.header.html') {
+        Write-Error "Please check your configuration. '.header.html' is not a valid value for the setting 'header_file'"
+    } 
+    if ($Script:footer_file -eq '.footer.html') {
+        Write-Error "Please check your configuration. '.footer.html' is not a valid value for the setting 'footer_file'"
+    }
+}
+
+function Get-JSContent {
+    Param(
+        [ValidateSet(
+        "GoogleAnalytics",
+        "DisqusBody",
+        "DisqusFooter"
+    )]$Code)
+
+    Switch ($Code) {
+        GoogleAnalytics {
+            if (!$Script:global_analytics -and !$Script:global_analytics_file) { return }
+            if (!$Script:global_analytics_file) {
+                Write-Output "<script type=`"text/javascript`">
+
+        var _gaq = _gaq || [];
+        _gaq.push(['_setAccount', '${Script:global_analytics}']);
+        _gaq.push(['_trackPageview']);
+
+        (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+        })();
+
+        </script>"
+            } else {
+                Get-Content "$global_analytics_file"
+            }
+        }
+        DisqusBody {
+            if (!$Script:global_disqus_username) { return }
+            Write-Output '<div id="disqus_thread"></div>
+            <script type="text/javascript">
+            /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+               var disqus_shortname = '"'$Script:global_disqus_username'"'; // required: replace example with your forum shortname
+
+            /* * * DONT EDIT BELOW THIS LINE * * */
+            (function() {
+            var dsq = document.createElement("script"); dsq.type = "text/javascript"; dsq.async = true;
+            dsq.src = "//" + disqus_shortname + ".disqus.com/embed.js";
+            (document.getElementsByTagName("head")[0] || document.getElementsByTagName("body")[0]).appendChild(dsq);
+            })();
+            </script>
+            <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+            <a href="http://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>'
+        }
+        DisqusFooter {
+            if (!$Script:global_disqus_username) { return }
+            Write-Output '<script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = '"'$Script:global_disqus_username'"'; // required: replace example with your forum shortname
+
+        /* * * DONT EDIT BELOW THIS LINE * * */
+        (function () {
+        var s = document.createElement("script"); s.async = true;
+        s.type = "text/javascript";
+        s.src = "//" + disqus_shortname + ".disqus.com/count.js";
+        (document.getElementsByTagName("HEAD")[0] || document.getElementsByTagName("BODY")[0]).appendChild(s);
+    }());
+    </script>'
+            }
+    }
+}
 function Get-HTMLFileContent {
     [CmdLetBinding()]
     Param(
@@ -201,8 +275,8 @@ Param(
     Invoke-Command -ScriptBlock {
         Get-Content '.header.html'
         Write-Output "<title>$Title</title>"
-        # google_analytics
-        #twitter_card "$content" "$title"
+        Get-JSContent -Code GoogleAnalytics
+        #twitter_card "$content" "$title" ## Not implemented yet ##
         Write-Output "</head><body>"
         # stuff to add before the actual body content
         If ($Script:body_begin_file) { Get-Content "$Script:body_begin_file" }
@@ -254,13 +328,13 @@ Param(
         Write-Output '</div>' # content
 
         # Add disqus commments except for index and all_posts pages
-        #If (!$Index) { disqus_body }
+        If (!$Index) { Get-JSContent -Code DisqusBody }
 
         # page footer
         Get-Content .footer.html
         # close divs
         Write-Output '</div></div>' # divbody and divbodyholder 
-        #disqus_footer
+        Get-JSContent -Code DisqusFooter
         If ($Script:body_end_file) { Get-Content "$body_end_file" }
         Write-Output '</body></html>'
     } | Out-File "$FileName"
@@ -362,9 +436,11 @@ function do_main {
     [CmdLetBinding()]
     Param()
     Get-GlobalVariables
-    $global_config=".config"
+    If (Test-Path "$Script:global_config") {
+        $config = Get-Content "$Script:global_config" | Out-String
+        Invoke-Expression $config
+    }
     Write-Verbose "Running version $global_software_version"
-    New-CSS
 }
 
 Get-GlobalVariables
