@@ -242,6 +242,60 @@ function Get-HTMLFileContent {
     }
 }
 
+function Edit-BlogPost {
+    [CmdletBinding(DefaultParameterSetName="File")]
+    Param(
+        [Parameter(Mandatory=$True,ParameterSetName="File")]
+            [Parameter(ParameterSetName="FileAndKeep")]
+            [Parameter(ParameterSetName="FileAndFull")]
+            [ValidateScript({
+                $f="$((Get-Item $_).BaseName).html"
+                If (!(Test-Path $f )) { throw "Can't edit post $f, did you mean to use `"Edit-BlogPost <draft_file`"?" } else { $True }
+                })]
+            [string]$FileName,
+        [Parameter(ParameterSetName="FileAndKeep")]
+            [switch]$Keep,
+        [Parameter(ParameterSetName="FileAndFull")]
+            [switch]$Full
+        )
+
+
+    # Original post timestamp
+    #edit_timestamp=$(LC_ALL=C date -r "${1%%.*}.html" +"$date_format_full" )
+    #touch_timestamp=$(LC_ALL=C date -r "${1%%.*}.html" +"$date_format_timestamp")
+    #tags_before=$(tags_in_post "${1%%.*}.html")
+}
+
+# Finds all tags referenced in one post.
+# Accepts either filename as first argument, or post content at stdin
+# Prints one line with space-separated tags to stdout
+function Find-TagsInPost {
+    Param(
+        [Parameter(Position=0)][ValidateScript({Test-Path $_})][string]$FileName,
+        [Parameter(ValueFromPipeline=$True)]$InputObject
+    )
+    Begin { If ($FileName) {$InputObject=Get-Content "$FileName"} }
+    Process {
+        $InputObject | ForEach-Object {
+            If ($_ -match "^<p>$Script:template_tags_line_header") {
+                $_ `
+                -replace "^<p>$Script:template_tags_line_header", ""`
+                -replace '<[^>]*>', ''`
+                -replace ',', ' '
+            }
+        }
+    }
+}
+
+
+function Get-TwitterCard {
+
+}
+
+function Get-TwitterCode {
+
+}
+
 function Test-BoilerplateFile {
     Param($FilePath)
 
@@ -340,6 +394,18 @@ Param(
     } | Out-File "$FileName"
 }
 
+function ConvertTo-HTML {
+    # was parse_file() in bb
+}
+
+function Write-Entry {
+    # was write_entry in bb
+}
+
+function New-AllPosts {
+    # was all_posts() in bb
+}
+
 function New-Includes {
     Invoke-Command -ScriptBlock {
         Write-Output "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
@@ -422,10 +488,6 @@ function New-CSS {
     }
 }
 
-function Edit-BlogPost {
-
-}
-
 function New-BlogPost {
 
 }
@@ -443,7 +505,7 @@ function do_main {
     Write-Verbose "Running version $global_software_version"
 }
 
-Get-GlobalVariables
+#Get-GlobalVariables
 #
 # MAIN
 # Do not change anything here. If you want to modify the code, edit do_main
