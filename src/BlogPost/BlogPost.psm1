@@ -130,13 +130,12 @@ function Get-GlobalVariables {
     $Script:date_format_timestamp="yyyyMMddHHmm.ss"
     $Script:date_allposts_header="%B %Y"
     
-    <#
+    #
     # Perform the post title -> filename conversion
     # Experts only. You may need to tune the locales too
     # Leave empty for no conversion, which is not recommended
     # This default filter respects backwards compatibility
-    $Script:convert_filename="iconv -f utf-8 -t ascii//translit | sed 's/^-*//' | tr [:upper:] [:lower:] | tr ' ' '-' | tr -dc '[:alnum:]-'"
-    #>
+    $Script:convert_filename="%{`$b=[system.text.encoding]::UTF8.GetBytes(`$_);`$c=[system.text.encoding]::convert([text.encoding]::UTF8,[text.encoding]::ASCII,`$b);(-join [system.text.encoding]::ASCII.GetChars(`$c)).ToLower() -replace ' ','-' -replace '[^a-z0-9-]',''}"
 
     # URL where you can view the post while it's being edited
     # same as global_url by default
@@ -261,9 +260,39 @@ function Edit-BlogPost {
 
 
     # Original post timestamp
-    #edit_timestamp=$(LC_ALL=C date -r "${1%%.*}.html" +"$date_format_full" )
-    #touch_timestamp=$(LC_ALL=C date -r "${1%%.*}.html" +"$date_format_timestamp")
-    #tags_before=$(tags_in_post "${1%%.*}.html")
+    $tmpFileName="$((Get-Item $FileName).BaseName).html"
+    $edit_timestamp=(Get-Date (Get-Item $tmpFileName ).LastWriteTime -Format $Script:date_format_full) -replace '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)','$1, $2$3$4'
+    $touch_timestamp=(Get-Date (Get-Item $tmpFileName ).LastWriteTime -Format $Script:date_format_timestamp)
+    $tags_before=Find-TagsInPost $tmpFileName
+    if ($Full) {
+        Invoke-Expression "`"$EDITOR`" $FileName"
+    } else {
+        If ((Get-Item $FileName).Extension -eq '.md') {
+            # editing markdown file
+            Invoke-Expression "'$EDITOR' '$1'"
+            $TMPFILE=(ConvertFrom-Markdown "$1").Html
+            $FileName=$FileName -replace '(.*)\..*','$1.html'
+        } else {
+            # Create the content file
+            $TMPFILE="$((Get-Item $FileName).BaseName).$(Get-Random).html"
+            # Title
+            Get-PostTitle "$1" | Out-File "$TMPFILE"
+            # Post text with plaintext tags
+            Get-Content $FileName | Get-HTMLFileContent 'text' 'text' |
+            ForEach-Object {
+                If ($_ -match "^<p>$Script:template_tags_line_header") {
+                    $_ -replace "<a href='${Script:prefix_tags}([^']*).html'>\1</a>", "$1"
+                } else {
+                    $_
+                }
+            } | Out-File "$TMPFILE" -Append
+            Invoke-Expression "'$EDITOR' '$TMPFILE'"
+        }
+        Remove-Item "$FileName"
+        If ($Keep) {
+
+        }
+    }
 }
 
 # Finds all tags referenced in one post.
@@ -317,13 +346,13 @@ function New-HTMLPage {
 [CmdLetBinding(DefaultParameterSetName='NoIndex')]
 Param(
     [ValidateScript({Test-Path -Path $_})]
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$True,Position=0)]
     [string]$Content,
-    [Parameter(Mandatory=$True)]$FileName,
-    [Parameter(Mandatory=$True)]$Title,
+    [Parameter(Mandatory=$True,Position=1)]$FileName,
+    [Parameter(Mandatory=$True,Position=2)]$Title,
     [Parameter(ParameterSetName='Index')][switch]$Index,
-    [Parameter(ParameterSetName='NoIndex')]$Timestamp,
-    [Parameter(ParameterSetName='NoIndex')]$Author
+    [Parameter(ParameterSetName='NoIndex',Position=3)]$Timestamp,
+    [Parameter(ParameterSetName='NoIndex',Position=4)]$Author
 )
 
     Invoke-Command -ScriptBlock {
@@ -394,8 +423,54 @@ Param(
     } | Out-File "$FileName"
 }
 
-function ConvertTo-HTML {
+function ConvertTo-BlogPost {
+    Param(
+        [Parameter(Mandatory=$True)]
+        [ValidateScript({Test-Path $_})]$SourceFile,
+        $Timestamp,
+        $DestinationFile
+    )
     # was parse_file() in bb
+    $Title=""
+    Get-Content $SourceFile | ForEach-Object {
+        If (!$Title) {
+            # remove extra <p> and </p> added by markdown
+            $Title=$_ -replace '<\/*p>',''
+            If ($DestinationFile) {
+                $FileName=$DestinationFile
+            } else {
+                $FileName=$Title
+                If ($Script:convert_filename) {
+                    $FileName = Invoke-Expression "Write-Output '$Title' | $Script:convert_filename"
+                }
+                If (!$FileName) {
+                    $FileName=(Get-Random) # don't allow empty filenames
+                }
+                $FileName="$FileName.html"
+
+                # Check for duplicate file names
+                while (Test-Path $FileName) {
+                    $FileName="$((Get-Item $FileName).Basename)$(Get-Random).html"
+                }
+            #>
+            }
+            $Content="$FileName.tmp"
+        # Parse possible tags
+        } elseif ($_ -match "<p>$Script:template_tags_line_header") {
+            $Tags=$_.split(':')[1].replace('</p>','').trim().replace(', ',',').split(',')
+            Write-Output "<p>$Script:template_tags_line_header " | Out-File "$Content" -NoNewLine -Append
+            $Tags | ForEach-Object {
+                $TagContent += "<a href='${Script:prefix_tags}${_}.html'>${_}</a>, "
+            }
+            $TagContent.replace(', ','</p>') | Out-File "$Content" -Append
+        } else {
+            Write-Output "$_" | Out-File "$Content" -Append
+        }
+    }
+
+    # Create the actual html page
+    New-HTMLPage $Content $FileName $Title $Timestamp -Author $Script:global_author
+    Remove-Item "$Content"
 }
 
 function Write-Entry {
