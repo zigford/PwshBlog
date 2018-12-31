@@ -144,6 +144,17 @@ function Get-GlobalVariables {
     $Script:preview_url=""
 }
 
+function New-HTMLFromMarkdown {
+    [CmdLetBinding()]
+    Param([ValidateScript({Test-Path $_})][Parameter(Mandatory=$True)]$MarkdownFile)
+    $Out = "$(($MarkdownFile).BaseName).html"
+    While (Test-Path $Out) { $Out = "$(($MarkdownFile).BaseName).$(Get-Random).html" }
+    $Content = ConvertFrom-Markdown -Path $MarkdownFile 
+    New-Item -ItemType File -Name "$Out" `
+        -Value $Content.Html
+        Write-Verbose "md converted to html: $Out"
+}
+
 function Test-GlobalVariables {
     if ($Script:header_file -eq '.header.html') {
         Write-Error "Please check your configuration. '.header.html' is not a valid value for the setting 'header_file'"
@@ -241,10 +252,15 @@ function Get-HTMLFileContent {
     }
 }
 
+function Test-Editor {
+    If (!$Env:EDITOR) {throw "Please set your `$ENV:EDITOR environment variable. For example, to use nano, add the line '`$ENV:EDITOR=nano' to your $profile file"
+    }
+}
+
 function Edit-BlogPost {
     [CmdletBinding(DefaultParameterSetName="File")]
     Param(
-        [Parameter(Mandatory=$True,ParameterSetName="File")]
+        [Parameter(Mandatory=$True,ParameterSetName="File",Position=0)]
             [Parameter(ParameterSetName="FileAndKeep")]
             [Parameter(ParameterSetName="FileAndFull")]
             [ValidateScript({
@@ -258,27 +274,31 @@ function Edit-BlogPost {
             [switch]$Full
         )
 
+    Test-Editor 
+    New-CSS
+    New-Includes
+    $File=Get-Item $FileName
     $Orig_FileName=$FileName
     # Original post timestamp
-    $tmpFileName="$((Get-Item $FileName).BaseName).html"
+    $tmpFileName="$($File.BaseName).html"
     $Edit_Timestamp=(Get-Date (Get-Item $tmpFileName).LastWriteTime -Format $Script:date_format_full) -replace '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)','$1, $2$3$4'
     $Touch_Timestamp=(Get-Date (Get-Item $tmpFileName).LastWriteTime)
     [array]$tags_before=Find-TagsInPost $tmpFileName
     if ($Full) {
-        Invoke-Expression "`"$EDITOR`" $FileName"
+        Start-Process $env:EDITOR -ArgumentList $FileName -Wait
     } else {
-        If ((Get-Item $FileName).Extension -eq '.md') {
+        If ($File.Extension -eq '.md') {
             # editing markdown file
-            Invoke-Expression "'$EDITOR' '$1'"
-            $TMPFILE=(ConvertFrom-Markdown "$1").Html
-            $FileName=$FileName -replace '(.*)\..*','$1.html'
+            Start-Process $env:EDITOR -ArgumentList $FileName -Wait
+            $TMPFILE=(New-HTMLFromMarkdown $File)
+            $FileName="$($File.Basename).html"
         } else {
             # Create the content file
-            $TMPFILE="$((Get-Item $FileName).BaseName).$(Get-Random).html"
+            $TMPFILE="$($File.BaseName).$(Get-Random).html"
             # Title
             Get-PostTitle "$FileName" | Out-File "$TMPFILE"
             # Post text with plaintext tags
-            Get-Content $FileName | Get-HTMLFileContent 'text' 'text' |
+            Get-Content $File | Get-HTMLFileContent 'text' 'text' |
             ForEach-Object {
                 If ($_ -match "^<p>$Script:template_tags_line_header") {
                     $_ -replace "<a href='${Script:prefix_tags}([^']*).html'>\1</a>", "$1"
@@ -286,28 +306,30 @@ function Edit-BlogPost {
                     $_
                 }
             } | Out-File "$TMPFILE" -Append
-            Invoke-Expression "'$EDITOR' '$TMPFILE'"
+            Start-Process $env:EDITOR -ArgumentList $FileName -Wait
         }
         Remove-Item "$FileName"
         If ($Keep) {
-            ConvertTo-BlogPost -SourceFile "$TMPFILE" -Timestamp $Edit_Timestamp "$FileName"
+            ConvertTo-BlogPost -SourceFile $TMPFILE -Timestamp $Edit_Timestamp "$FileName"
         } else {
-            ConvertTo-BlogPost -SourceFile "$TMPFILE" -Timestamp $Edit_Timestamp
-            If ((Get-Item $Orig_FileName).Extension -eq '.md') {
-                Move-Item $Orig_FileName ($FileName -replace '(.*\..*)','$1.md') -Force
+            ConvertTo-BlogPost -SourceFile $TMPFILE -Timestamp $Edit_Timestamp
+            If ($File.Extension -eq '.md') {
+                Write-Verbose "Moving $File to $($FileName -replace '(.*?\..*)','$1.md') filename: $FileName"
+                Move-Item $File ($FileName -replace '(.*?)\..*','$1.md') -Force
             }
         }
-        Remove-Item $TMPFILE
+        Remove-Item "$TMPFILE"
     }
-    Set-FileTimestamp $FileName -Timestamp $Touch_Timestamp
-    Set-FileTimestamp $Orig_FileName -Timestamp $Touch_Timestamp
+    Set-FileTimestamp $FileName -Timestamp $Touch_Timestamp | Out-Null
+    Set-FileTimestamp $Orig_FileName -Timestamp $Touch_Timestamp | Out-Null
     # chmod 644 "$filename"
     [array]$tags_after=Find-TagsInPost $FileName
     $relevant_tags=$tags_before+$tags_after | Sort-Object -Unique
     if ($relevant_tags) {
         $relevant_posts=(Find-PostsWithTags $relevant_tags)+$FileName
-        rebuild_tags "$relevant_posts" "$relevant_tags"
+        Build-Tags -Posts $relevant_posts -Tags $relevant_tags
     }
+    Remove-Includes
 }
 
 function Find-PostsWithTags {
@@ -317,7 +339,7 @@ function Find-PostsWithTags {
     Param([array]$Tags)
     $Tags | ForEach-Object {
         $TagFile = "${Script:prefix_tags}${_}.html"
-        Get-Content $TagFile | ForEach-Object {
+        Get-Content $TagFile -ErrorAction SilentlyContinue | ForEach-Object {
             If ($_ -match '^<h3><a class="ablack" href="[^"]*">') {
                 $_ -replace '.*href="([^"]*)">.*','$1'
             }
@@ -339,12 +361,11 @@ function Build-Tags {
     } else {
         throw "Invalid combination of parameters"
     }
-    Write-Verbose "Rebuilding tag pages for $($Posts.Count) posts"
     If ($AllTags) {
         Remove-Item "${Script:prefix_tags}*.html"
     } else {
         $Tags | ForEach-Object {
-            Remove-Item "${Script:prefix_tags}${_}.html"
+            Remove-Item "${Script:prefix_tags}${_}.html" -ErrorAction SilentlyContinue
         }
     }
     # First we will process all files and create temporal tag files
@@ -385,7 +406,6 @@ function Build-Tags {
     $tmpTagFiles | ForEach-Object {
         $tagname=$_.Name -replace "^${Script:prefix_tags}([^\.]*).*",'$1'
         Write-Progress -Activity "Rebuilding tag pages" -Status "Writing $tagname" -PercentComplete ($i/$tmpTagFiles.count*100)
-        Write-Verbose "Creating new html page $tagname"
         New-HTMLPage -Content $_ -FileName "${Script:prefix_tags}${tagname}.html" -Index -Title "${Script:global_title} &mdash; ${Script:template_tag_title} `"$tagname`""
         Remove-Item $_
     }
@@ -475,7 +495,6 @@ function Test-BoilerplateFile {
         {$_ -match $prefix_tags} { return $True }
         Default {
             If ($Name -in $html_exclude) { return $True } 
-            Write-Verbose "$Name is not boilerplate"
             return $False
         }
     }
@@ -494,6 +513,7 @@ Param(
     [Parameter(ParameterSetName='NoIndex',Position=4)]$Author
 )
 
+    Write-Verbose "Creating new html page $FileName"
     Invoke-Command -ScriptBlock {
         Get-Content '.header.html'
         Write-Output "<title>$Title</title>"
@@ -518,6 +538,7 @@ Param(
             Write-Output '<!-- entry begin -->' # marks the beginning of the whole post
             Write-Output "<h3><a class=`"ablack`" href=`"$FileUrl`">"
             # remove possible <p>'s on the title because of markdown conversion
+            $Matches = $Null
             $Title -match '<[pP]>(?<title>.*)</[pP]>' | Out-Null
             If ($Matches) { $Title=$Matches['title'] }
             Write-Output "$Title"
@@ -601,7 +622,7 @@ function ConvertTo-BlogPost {
             $Tags | ForEach-Object {
                 $TagContent += "<a href='${Script:prefix_tags}${_}.html'>${_}</a>, "
             }
-            $TagContent.replace(', ','</p>') | Out-File "$Content" -Append
+            $TagContent -replace ', $','</p>' | Out-File "$Content" -Append
         } else {
             Write-Output "$_" | Out-File "$Content" -Append
         }
@@ -653,6 +674,10 @@ function New-Includes {
             Write-Output 'Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>'
         } | Out-File -Append ".footer.html"
     }
+}
+
+function Remove-Includes {
+    '.title.html', '.footer.html', '.header.html' | Remove-Item -Force
 }
 
 function New-CSS {
