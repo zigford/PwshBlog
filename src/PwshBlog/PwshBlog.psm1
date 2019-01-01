@@ -588,7 +588,54 @@ function New-TagsIndex {
 }
 
 function Build-Index {
+    [CmdLetBinding()]
+    Param()
+
     # was rebuild_index
+    Get-GlobalVariables
+    New-CSS
+    New-Includes
+    Write-Verbose "Building the index"
+    $NewIndexFile="${Script:index_file}.$(Get-Random)"
+    $ContentFile="${NewIndexFile}.content"
+    While (Test-Path $NewIndexFile -ErrorAction SilentlyContinue) {
+        $NewIndexFile="${Script:index_file}.$(Get-Random)"
+        $ContentFile="${NewIndexFile}.content"
+    }
+    # Create the content file
+    Invoke-Command -ScriptBlock {
+        $n=0
+        $i=0
+        $Posts = Get-ChildItem -Filter "*.html" | Sort-Object -Property LastWriteTime -Descending
+        foreach ($Post in $Posts.Name) {
+            $i=$i+1
+            Write-Progress -Activity "Generating Index" -Status "Scanning $Post" -PercentComplete ($i/$Posts.count*100)
+            If (Test-BoilerplateFile $Post) { continue }
+            If ($n -ge $Script:number_of_index_articles) { break }
+            If ($Script:cut_do) {
+                Get-Content $Post | Get-HTMLFileContent "entry" "entry" -Cut |
+                ForEach-Object {
+                    If ($_ -match "$Script:cut_line") {
+                        Write-Output "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
+                    } else {
+                        $_
+                    }
+                }
+            } else {
+                Get-Content $Post | Get-HTMLFileContent "entry" "entry"
+            }
+            $n=$n+1
+        }
+    } | Out-File "$ContentFile"
+
+    $Feed=$Script:blog_feed
+    if ($Script:global_feedburner) { $Feed=$Script:global_feedburner }
+    Write-Output "<div id=`"all_posts`"><a href=`"$Script:archive_index`">$Script:template_archive</a> &mdash; <a href=`"$Script:tags_index`">$Script:template_tags_title</a> &mdash; <a href=`"$Feed`">$Script:template_subscribe</a></div>" | Out-File "$contentfile" -Append
+
+    New-HTMLPage "$contentfile" "$newindexfile" -Index -Title "$Script:global_title"
+    Remove-Item "$contentfile"
+    Move-Item "$newindexfile" "$Script:index_file" -Force
+    Remove-Includes
 }
 
 # Finds all tags referenced in one post.
