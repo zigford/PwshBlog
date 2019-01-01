@@ -144,6 +144,15 @@ function Get-GlobalVariables {
     $Script:preview_url=""
 }
 
+function Test-GlobalVariables {
+    if ($Script:header_file -eq '.header.html') {
+        Write-Error "Please check your configuration. '.header.html' is not a valid value for the setting 'header_file'"
+    } 
+    if ($Script:footer_file -eq '.footer.html') {
+        Write-Error "Please check your configuration. '.footer.html' is not a valid value for the setting 'footer_file'"
+    }
+}
+
 function New-HTMLFromMarkdown {
     [CmdLetBinding()]
     Param([ValidateScript({Test-Path $_})][Parameter(Mandatory=$True)]$MarkdownFile)
@@ -153,15 +162,6 @@ function New-HTMLFromMarkdown {
     New-Item -ItemType File -Name "$Out" `
         -Value $Content.Html
         Write-Verbose "md converted to html: $Out"
-}
-
-function Test-GlobalVariables {
-    if ($Script:header_file -eq '.header.html') {
-        Write-Error "Please check your configuration. '.header.html' is not a valid value for the setting 'header_file'"
-    } 
-    if ($Script:footer_file -eq '.footer.html') {
-        Write-Error "Please check your configuration. '.footer.html' is not a valid value for the setting 'footer_file'"
-    }
 }
 
 function Get-JSContent {
@@ -252,11 +252,6 @@ function Get-HTMLFileContent {
     }
 }
 
-function Test-Editor {
-    If (!$Env:EDITOR) {throw "Please set your `$ENV:EDITOR environment variable. For example, to use nano, add the line '`$ENV:EDITOR=nano' to your $profile file"
-    }
-}
-
 function Edit-BlogPost {
     [CmdletBinding(DefaultParameterSetName="File")]
     Param(
@@ -331,149 +326,6 @@ function Edit-BlogPost {
     }
     Remove-Includes
 }
-
-function Find-PostsWithTags {
-# Finds all posts referenced in a number of tags.
-# Arguments are tags
-# Prints one line with space-separated tags to stdout
-    Param([array]$Tags)
-    $Tags | ForEach-Object {
-        $TagFile = "${Script:prefix_tags}${_}.html"
-        Get-Content $TagFile -ErrorAction SilentlyContinue | ForEach-Object {
-            If ($_ -match '^<h3><a class="ablack" href="[^"]*">') {
-                $_ -replace '.*href="([^"]*)">.*','$1'
-            }
-        }
-    }
-}
-
-function Build-Tags {
-    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
-    Param(
-        [Parameter(ParameterSetName="Both")][array]$Posts,
-        [Parameter(ParameterSetName="Both")][array]$Tags
-    )
-    If (!$Posts -and !$Tags) {
-        $Posts=Get-ChildItem -Filter '*.html' | Sort-Object -Property LastWriteTime -Descending
-        $AllTags=$True
-    } elseif ($Posts -and $Tags) {
-        $Posts = $Posts | Sort-Object -Unique | Get-ChildItem | Sort-Object -Property LastWriteTime -Descending
-    } else {
-        throw "Invalid combination of parameters"
-    }
-    If ($AllTags) {
-        Remove-Item "${Script:prefix_tags}*.html"
-    } else {
-        $Tags | ForEach-Object {
-            Remove-Item "${Script:prefix_tags}${_}.html" -ErrorAction SilentlyContinue
-        }
-    }
-    # First we will process all files and create temporal tag files
-    # with just the content of the posts
-    $tmpfile="tmp.$(Get-Random)"
-    While (Test-Path $tmpfile) { $tmpfile="tmp.$(Get-Random)" }
-    $i=0
-    foreach ($Post in $Posts) {
-        $i=$i+1
-        Write-Progress -Activity "Scanning for tag pages" -Status "Scanning $Post for tags" -PercentComplete ($i/$Posts.count*100)
-        If (Test-BoilerplateFile $Post) { continue }
-        Invoke-Command -ScriptBlock {
-            If ($Script:cut_do) {
-                Get-Content $Post | Get-HTMLFileContent "entry" "entry" -Cut | ForEach-Object {
-                    If ($_ -match "$Script:cut_line") {
-                        Write-Output "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
-                    } else {
-                        $_
-                    }
-                }
-            } else {
-                Get-Content $Post | Get-HTMLFileContent "entry" "entry"
-            }
-        } | Out-File $tmpfile
-        ForEach ($Tag in (Find-TagsInPost $Post)){
-            If ($AllTags -or $Tag -in $Tags) {
-                Get-Content $tmpfile | Out-File "${Script:prefix_tags}${Tag}.tmp.html" -Append
-            }
-        }
-    }
-    Write-Progress -Activity "Scanning for tag pages" -Status "Finished" -Complete
-    Remove-Item $tmpfile
-    # Now generate the tag files with headers, footers, etc
-    Write-Verbose "Generating tag files"
-    $i=0
-    Write-Progress -Activity "Rebuilding tag pages" -Status "Writing tags" -PercentComplete 0
-    $tmpTagFiles = Get-ChildItem "${Script:prefix_tags}*.tmp.html" | Sort-Object -Property LastWriteTime -Descending 
-    $tmpTagFiles | ForEach-Object {
-        $tagname=$_.Name -replace "^${Script:prefix_tags}([^\.]*).*",'$1'
-        Write-Progress -Activity "Rebuilding tag pages" -Status "Writing $tagname" -PercentComplete ($i/$tmpTagFiles.count*100)
-        New-HTMLPage -Content $_ -FileName "${Script:prefix_tags}${tagname}.html" -Index -Title "${Script:global_title} &mdash; ${Script:template_tag_title} `"$tagname`""
-        Remove-Item $_
-    }
-    Write-Progress -Activity "Rebuilding tag pages" -Complete
-}
-
-function Set-FileTimestamp {
-    <#
-    .SYNOPSIS
-        Replace Unix Touch command in a powershelly way
-    .DESCRIPTION
-        Set a file's timestamp. Create the file if it doesn't exist.
-    .PARAMETER FileName
-        Filename/path to file of which to set timestamp.
-    .PARAMETER Timestamp
-        If specified set the lastwritetime of a file to this timestamp. Otherwise, use the current date/time.
-    .EXAMPLE
-        Set-FileTimestamp -FileName "billybob.txt"
-    .EXAMPLE
-        Set-FileTimestamp -FileName "secrets.txt" -Timestamp (Get-Date).AddDays(-102)
-    .NOTES
-        notes
-    .LINK
-        online help
-    #>
-    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='Low')]
-    Param(
-        [Parameter(Mandatory=$True)]
-        [ValidateScript({((Test-Path $_) -and !(Get-Item $_).PSIsContainer) -or !(Test-Path $_)})]$FileName,
-        [DateTime]$Timestamp
-    )
-
-    If (!$Timestamp) { $Timestamp = Get-Date }
-    If (Test-Path -Path $FileName) { 
-        If ($PSCmdlet.ShouldProcess("$Filename","Update timestamp")) {
-            (Get-Item $FileName).LastWriteTime = $Timestamp
-        }
-        Get-Item $FileName
-    } else {
-        If ($PSCmdlet.ShouldProcess("$FileName","Create new file with timestamp")) {
-            (New-Item -ItemType File -Name $FileName -Confirm:$False).LastWriteTime = $Timestamp
-            Get-Item $FileName
-        }
-    }
-}
-
-# Finds all tags referenced in one post.
-# Accepts either filename as first argument, or post content at stdin
-# Prints one line with space-separated tags to stdout
-function Find-TagsInPost {
-    Param(
-        [Parameter(Position=0)][ValidateScript({Test-Path $_})][string]$FileName,
-        [Parameter(ValueFromPipeline=$True)]$InputObject
-    )
-    Begin { If ($FileName) {$InputObject=Get-Content "$FileName"} }
-    Process {
-        $InputObject | ForEach-Object {
-            If ($_ -match "^<p>$Script:template_tags_line_header") {
-                $tags = $_ `
-                -replace "^<p>$Script:template_tags_line_header", ""`
-                -replace '<[^>]*>', ''`
-                -replace '[, ]+', ' '
-                $tags.trim().split(' ')
-            }
-        }
-    }
-}
-
 
 function Get-TwitterCard {
 
@@ -633,15 +485,149 @@ function ConvertTo-BlogPost {
     Remove-Item "$Content"
 }
 
-function Write-Entry {
-    # was write_entry in bb
+function New-BlogPost {
+    # was write_entry
 }
 
-function New-AllPosts {
-    # was all_posts() in bb
+function New-IndexPage {
+    # was all_posts
+}
+
+function New-TagsIndex {
+    # was all_tags
+}
+
+function Build-Index {
+    # was rebuild_index
+}
+
+# Finds all tags referenced in one post.
+# Accepts either filename as first argument, or post content at stdin
+# Prints one line with space-separated tags to stdout
+function Find-TagsInPost {
+    # was tags_in_post
+    Param(
+        [Parameter(Position=0)][ValidateScript({Test-Path $_})][string]$FileName,
+        [Parameter(ValueFromPipeline=$True)]$InputObject
+    )
+    Begin { If ($FileName) {$InputObject=Get-Content "$FileName"} }
+    Process {
+        $InputObject | ForEach-Object {
+            If ($_ -match "^<p>$Script:template_tags_line_header") {
+                $tags = $_ `
+                -replace "^<p>$Script:template_tags_line_header", ""`
+                -replace '<[^>]*>', ''`
+                -replace '[, ]+', ' '
+                $tags.trim().split(' ')
+            }
+        }
+    }
+}
+
+function Find-PostsWithTags {
+    # was posts_with_tags
+    # Finds all posts referenced in a number of tags.
+    # Arguments are tags
+    # Prints one line with space-separated tags to stdout
+    Param([array]$Tags)
+    $Tags | ForEach-Object {
+        $TagFile = "${Script:prefix_tags}${_}.html"
+        Get-Content $TagFile -ErrorAction SilentlyContinue | ForEach-Object {
+            If ($_ -match '^<h3><a class="ablack" href="[^"]*">') {
+                $_ -replace '.*href="([^"]*)">.*','$1'
+            }
+        }
+    }
+}
+
+function Build-Tags {
+    # was rebuild_tags
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
+    Param(
+        [Parameter(ParameterSetName="Both")][array]$Posts,
+        [Parameter(ParameterSetName="Both")][array]$Tags
+    )
+    If (!$Posts -and !$Tags) {
+        $Posts=Get-ChildItem -Filter '*.html' | Sort-Object -Property LastWriteTime -Descending
+        $AllTags=$True
+    } elseif ($Posts -and $Tags) {
+        $Posts = $Posts | Sort-Object -Unique | Get-ChildItem | Sort-Object -Property LastWriteTime -Descending
+    } else {
+        throw "Invalid combination of parameters"
+    }
+    If ($AllTags) {
+        Remove-Item "${Script:prefix_tags}*.html"
+    } else {
+        $Tags | ForEach-Object {
+            Remove-Item "${Script:prefix_tags}${_}.html" -ErrorAction SilentlyContinue
+        }
+    }
+    # First we will process all files and create temporal tag files
+    # with just the content of the posts
+    $tmpfile="tmp.$(Get-Random)"
+    While (Test-Path $tmpfile) { $tmpfile="tmp.$(Get-Random)" }
+    $i=0
+    foreach ($Post in $Posts) {
+        $i=$i+1
+        Write-Progress -Activity "Scanning for tag pages" -Status "Scanning $Post for tags" -PercentComplete ($i/$Posts.count*100)
+        If (Test-BoilerplateFile $Post) { continue }
+        Invoke-Command -ScriptBlock {
+            If ($Script:cut_do) {
+                Get-Content $Post | Get-HTMLFileContent "entry" "entry" -Cut | ForEach-Object {
+                    If ($_ -match "$Script:cut_line") {
+                        Write-Output "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
+                    } else {
+                        $_
+                    }
+                }
+            } else {
+                Get-Content $Post | Get-HTMLFileContent "entry" "entry"
+            }
+        } | Out-File $tmpfile
+        ForEach ($Tag in (Find-TagsInPost $Post)){
+            If ($AllTags -or $Tag -in $Tags) {
+                Get-Content $tmpfile | Out-File "${Script:prefix_tags}${Tag}.tmp.html" -Append
+            }
+        }
+    }
+    Write-Progress -Activity "Scanning for tag pages" -Status "Finished" -Complete
+    Remove-Item $tmpfile
+    # Now generate the tag files with headers, footers, etc
+    Write-Verbose "Generating tag files"
+    $i=0
+    Write-Progress -Activity "Rebuilding tag pages" -Status "Writing tags" -PercentComplete 0
+    $tmpTagFiles = Get-ChildItem "${Script:prefix_tags}*.tmp.html" | Sort-Object -Property LastWriteTime -Descending 
+    $tmpTagFiles | ForEach-Object {
+        $tagname=$_.Name -replace "^${Script:prefix_tags}([^\.]*).*",'$1'
+        Write-Progress -Activity "Rebuilding tag pages" -Status "Writing $tagname" -PercentComplete ($i/$tmpTagFiles.count*100)
+        New-HTMLPage -Content $_ -FileName "${Script:prefix_tags}${tagname}.html" -Index -Title "${Script:global_title} &mdash; ${Script:template_tag_title} `"$tagname`""
+        Remove-Item $_
+    }
+    Write-Progress -Activity "Rebuilding tag pages" -Complete
+}
+
+function Get-PostTitle {
+    # was get_post_title
+}
+
+function Get-PostAuthor {
+    # was get_post_author
+}
+
+function Get-Tags {
+    # was list_tags
+}
+
+function Get-Posts {
+    # was list_posts
+}
+
+function New-RSSFeedFile {
+    # was make_rss
 }
 
 function New-Includes {
+    # was create_includes
     Invoke-Command -ScriptBlock {
         Write-Output "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
         Write-Output "<div id=`"description`">$global_description</div>"
@@ -727,11 +713,61 @@ function New-CSS {
     }
 }
 
-function New-BlogPost {
+function Build-AllEntries {
+    # was rebuild_all_entries
+}
 
+function Reset-BlogSite {
+    # was reset
+}
+
+#####
+# Other functions to implement missing features
+function Set-FileTimestamp {
+    <#
+    .SYNOPSIS
+        Replace Unix Touch command in a powershelly way
+    .DESCRIPTION
+        Set a file's timestamp. Create the file if it doesn't exist.
+    .PARAMETER FileName
+        Filename/path to file of which to set timestamp.
+    .PARAMETER Timestamp
+        If specified set the lastwritetime of a file to this timestamp. Otherwise, use the current date/time.
+    .EXAMPLE
+        Set-FileTimestamp -FileName "billybob.txt"
+    .EXAMPLE
+        Set-FileTimestamp -FileName "secrets.txt" -Timestamp (Get-Date).AddDays(-102)
+    .NOTES
+        notes
+    .LINK
+        online help
+    #>
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='Low')]
+    Param(
+        [Parameter(Mandatory=$True)]
+        [ValidateScript({((Test-Path $_) -and !(Get-Item $_).PSIsContainer) -or !(Test-Path $_)})]$FileName,
+        [DateTime]$Timestamp
+    )
+
+    If (!$Timestamp) { $Timestamp = Get-Date }
+    If (Test-Path -Path $FileName) { 
+        If ($PSCmdlet.ShouldProcess("$Filename","Update timestamp")) {
+            (Get-Item $FileName).LastWriteTime = $Timestamp
+        }
+        Get-Item $FileName
+    } else {
+        If ($PSCmdlet.ShouldProcess("$FileName","Create new file with timestamp")) {
+            (New-Item -ItemType File -Name $FileName -Confirm:$False).LastWriteTime = $Timestamp
+            Get-Item $FileName
+        }
+    }
 }
 
 
+function Test-Editor {
+    If (!$Env:EDITOR) {throw "Please set your `$ENV:EDITOR environment variable. For example, to use nano, add the line '`$ENV:EDITOR=nano' to your $profile file"
+    }
+}
 
 function do_main {
     [CmdLetBinding()]
