@@ -1,5 +1,18 @@
 #! /usr/bin/env pwsh
 
+# PwshBlog, a simple blog system written as a PowerShell Module.
+# Inspired by BashBlog originally written by 
+# (C) Carlos Fenollosa <carlos.fenollosa@gmail.com>, 2011-2016 and contributors
+# https://github.com/carlesfe/bashblog/contributors
+# Check out README.md for more details
+
+# Global variables
+# It is recommended to perform a 'Build' after changing any of this in the code
+
+# Config file. Any settings "$key=value" written there will override the
+# global_variables defaults. Useful to avoid editing PwshBlog.psm1 and having to
+# deal with merges in VCS
+
 $Script:global_config='.config'
 
 function Get-GlobalVariables {
@@ -155,7 +168,11 @@ function Test-GlobalVariables {
 
 function New-HTMLFromMarkdown {
     [CmdLetBinding()]
-    Param([ValidateScript({Test-Path $_})][Parameter(Mandatory=$True)]$MarkdownFile)
+    Param(
+        [ValidateScript({(Test-Path $_)})]
+        [Parameter(Mandatory=$True)]
+        [System.IO.FileInfo]$MarkdownFile
+    )
     $Out = "$(($MarkdownFile).BaseName).html"
     While (Test-Path $Out) { $Out = "$(($MarkdownFile).BaseName).$(Get-Random).html" }
     $Content = ConvertFrom-Markdown -Path $MarkdownFile 
@@ -307,7 +324,7 @@ function Edit-BlogPost {
         If ($Keep) {
             ConvertTo-BlogPost -SourceFile $TMPFILE -Timestamp $Edit_Timestamp "$FileName"
         } else {
-            ConvertTo-BlogPost -SourceFile $TMPFILE -Timestamp $Edit_Timestamp
+            ConvertTo-BlogPost -SourceFile $TMPFILE -Timestamp $Edit_Timestamp | Out-Null
             If ($File.Extension -eq '.md') {
                 Write-Verbose "Moving $File to $($FileName -replace '(.*?\..*)','$1.md') filename: $FileName"
                 Move-Item $File ($FileName -replace '(.*?)\..*','$1.md') -Force
@@ -397,7 +414,6 @@ Param(
             Write-Output '</a></h3>'
             if (!$Timestamp) {
                 Write-Output "<!-- $date_inpost`: #$(Get-Date -Format "$Script:date_format_timestamp")# -->"
-                #Write-Output "<!-- $date_inpost: #$((Get-Date -Format "$Script:date_format_timestamp") -replace '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)','$1, $2$3$4')# -->"
             } else {
                 Write-Output "<!-- $date_inpost`: #$(Get-Date $Timestamp -Format "$Script:date_format_timestamp")# -->"
             }
@@ -483,10 +499,84 @@ function ConvertTo-BlogPost {
     # Create the actual html page
     New-HTMLPage $Content $FileName $Title $Timestamp -Author $Script:global_author
     Remove-Item "$Content"
+    If (!$DestinationFile) {
+        return $FileName
+    }
 }
 
 function New-BlogPost {
     # was write_entry
+    [CmdLetBinding()]
+    Param(
+        [switch]$HTML,
+        [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName
+    )
+    
+    New-Includes
+    New-CSS
+    $Fmt = If ( $HTML ) { 'html' } else { 'md' }
+    If ($FileName) {
+        $TMPFILE = Get-Item $FileName
+        $Ext = $TMPFILE.Extension
+        $Fmt = If ($Ext -eq '.md' -and !$HTML) {'md'}else{'html'}
+    } else {
+        $TMPFILE = ".entry-$(Get-Random).$Fmt"
+        Write-Output "Title on this line`n" | Out-File "$TMPFILE" -Append
+        If ($Fmt -eq 'html') { Write-Output "<p>The rest of the text file is an <b>html</b> blog post. The process will continue as soon
+as you exit your editor.</p>
+
+<p>$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, example</p>" | Out-File "$TMPFILE" -Append
+        } else { Write-Output "The rest of the text file is a **Markdown** blog post. The process will continue
+as soon as you exit your editor.
+
+$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, beware-with-underscores-in-markdown, example" | Out-File "$TMPFILE" -Append
+        }
+    }
+    #chmod 600 "$TMPFILE"
+    $PostStatus="E"
+    While ($PostStatus -notmatch '[pP]') {
+        If ($FileName) {Remove-Item $FileName}
+
+        Start-Process $env:EDITOR "$TMPFILE" -Wait
+        If ($Fmt -eq 'md') {
+            $HtmlFromMd = New-HTMLFromMarkdown "$TMPFILE"
+            $FileName = ConvertTo-BlogPost -SourceFile $HtmlFromMd
+            Remove-Item $HtmlFromMd
+            Write-Verbose "Blog saved as $FileName"
+        } else {
+            $FileName = ConvertTo-BlogPost -SourceFile "$TMPFILE" # this command sets $filename as the html processed file
+            Write-Verbose "Blog saved as $FileName"
+        }
+        If (!$Script:preview_url) { $Script:preview_url=$Script:global_url }
+        Write-Output "To preview the entry, open $Script:preview_url/$FileName in your browser"
+        $PostStatus = Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
+        If ($PostStatus -match '[dD]') {
+            New-Item -ItemType Directory -Name drafts -Force
+
+            $Title = (Get-Content "$TMPFILE" -Head 1)
+            If ($Script:convert_filename) { $Title=Invoke-Expression "Write-Output '$Title' | $Script:convert_filename" }
+            If (!$Title) { $Title=Get-Random }
+            $Draft = "drafts/$Title.$Fmt"
+            Move-Item "$TMPFILE" $Draft
+            Remove-Item $FileName
+            Remove-Includes
+            Write-Output "Saved your draft as '$Draft'"
+            return 
+        }
+    }
+    If ($Fmt -eq 'md' -and $Script:save_markdown) {
+        Write-Verbose "Keeping MD file as: $($FileName -replace '(.*?)\..*','$1.md')"
+        Move-Item "$TMPFILE" ($FileName -replace '(.*?)\..*','$1.md')
+    } else {
+        Remove-Item "$TMPFILE"
+    }
+    Write-Output "Posted $FileName"
+    $relevant_tags = Find-TagsInPost $FileName
+    If ($relevant_tags) {
+        $relevant_posts=(Find-PostsWithTags $relevant_tags)+$FileName
+        Build-Tags -Posts $relevant_posts -Tags $relevant_tags
+    }
+    Remove-Includes
 }
 
 function New-IndexPage {
@@ -628,6 +718,7 @@ function New-RSSFeedFile {
 
 function New-Includes {
     # was create_includes
+    Write-Verbose "Crearing header and footer"
     Invoke-Command -ScriptBlock {
         Write-Output "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
         Write-Output "<div id=`"description`">$global_description</div>"
