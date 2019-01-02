@@ -134,7 +134,6 @@ function Get-GlobalVariables {
     $Script:template_twitter_comment="&lt;Type your comment here but please leave the URL so that other people can follow the comments&gt;"
     
     # The locale to use for the dates displayed on screen
-    $Script:date_format="%B %d, %Y"
     $Script:date_format="MMMM dd, yyyy"
     $Script:date_locale=(Get-Culture).Name
     $Script:date_inpost="bashblog_timestamp"
@@ -579,11 +578,11 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
     Remove-Includes
 }
 
-function New-IndexPage {
+function New-AllPostsPage {
     # was all_posts
 }
 
-function New-TagsIndex {
+function New-AllTagsPage {
     # was all_tags
 }
 
@@ -744,19 +743,64 @@ function Build-Tags {
 }
 
 function Get-PostTitle {
+    Param([string]$FileName)
+
     # was get_post_title
+    $Ctx = Get-Content $FileName | Select-String `
+        -Pattern '<h3><a class="ablack" href=".+">' `
+        -Context 0,2
+    $Ctx | Where-Object {$PSItem.Context.PostContext[1] -eq '</a></h3>'} |
+    ForEach-Object {$PSItem.Context.PostContext[0]}
 }
 
 function Get-PostAuthor {
+    Param([string]$FileName)
+
     # was get_post_author
+    $Ctx = Get-Content $FileName | Select-String `
+    -Pattern '<div class="subtitle">.+' `
+    -Context 0,2
+    $Ctx | Where-Object {$PSItem.Context.PostContext[1] -eq '</div>'} |
+    ForEach-Object {$PSItem.Context.PostContext[0]}
 }
 
 function Get-Tags {
+    [CmdletBinding()]
+    Param([switch]$Sort)
+
     # was list_tags
+    $TagFiles = Get-ChildItem -Filter "${Script:prefix_tags}*.html"
+
+    If (!$TagFiles) { throw "No posts yet. Use New-BlogPost to create one" }
+    $Objects = @()
+    ForEach ($TagFile in $TagFiles) {
+       If ($TagFile.PSIsContainer) { continue } 
+       $NPosts = (Select-String '<!-- text begin -->' $TagFile).Count
+       $TagName = $TagFile.Name -replace "${Script:prefix_tags}(.*?)\..*", '$1'
+       $Object = [PSCustomObject]@{
+           'Tag' = $TagName
+           'PostCount' = [int]$NPosts
+       }
+       If (!$Sort) { $Object } else { $Objects += $Object }
+    }
+    If ($Sort) { $Objects | Sort-Object -Property PostCount }
 }
 
 function Get-Posts {
     # was list_posts
+    $PostFiles = Get-ChildItem -Filter "*.html" |
+    Sort-Object -Property LastWriteTime -Descending
+
+    If (!$PostFiles) { throw "No posts yet. Use New-BlogPost to create one" }
+    
+    ForEach ($PostFile in $PostFiles) {
+        If (Test-BoilerplateFile $PostFile) { continue }
+        [PSCustomObject]@{
+            'Title' = Get-PostTitle $PostFile
+            'Timestamp' = (Get-Date (Get-Item $PostFile).LastWriteTime -Format $Script:date_format) 
+        }
+    }
+
 }
 
 function New-RSSFeedFile {
@@ -853,6 +897,8 @@ function New-CSS {
 
 function Build-AllEntries {
     # was rebuild_all_entries
+    Write-Verbose "Building all entries"
+
 }
 
 function Reset-BlogSite {
