@@ -140,7 +140,7 @@ function Get-GlobalVariables {
     # Don't change these dates
     $Script:date_format_full="dddd, dd MMM yyyy HH:mm:ss zzzz"
     $Script:date_format_timestamp="yyyyMMddHHmm.ss"
-    $Script:date_allposts_header="%B %Y"
+    $Script:date_allposts_header="MMMM yyyy"
     
     #
     # Perform the post title -> filename conversion
@@ -505,7 +505,7 @@ function ConvertTo-BlogPost {
 
 function New-BlogPost {
     # was write_entry
-    [CmdLetBinding()]
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
     Param(
         [switch]$HTML,
         [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName
@@ -540,7 +540,7 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
         If ($Fmt -eq 'md') {
             $HtmlFromMd = New-HTMLFromMarkdown "$TMPFILE"
             $FileName = ConvertTo-BlogPost -SourceFile $HtmlFromMd
-            Remove-Item $HtmlFromMd
+            Remove-Item $HtmlFromMd -Force
             Write-Verbose "Blog saved as $FileName"
         } else {
             $FileName = ConvertTo-BlogPost -SourceFile "$TMPFILE" # this command sets $filename as the html processed file
@@ -564,8 +564,16 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
         }
     }
     If ($Fmt -eq 'md' -and $Script:save_markdown) {
-        Write-Verbose "Keeping MD file as: $($FileName -replace '(.*?)\..*','$1.md')"
-        Move-Item "$TMPFILE" ($FileName -replace '(.*?)\..*','$1.md')
+        $NewMDFileName = $FileName -replace '(.*?)\..*','$1.md'
+        Write-Verbose "Keeping MD file as: $NewMDFileName"
+        If (Test-Path $NewMDFileName) {
+            Write-Warning "MD $NewMDFileName already exists. Replace?"
+            If ($PSCmdlet.ShouldProcess($NewMDFileName, "Overwrite")) {
+                Move-Item "$TMPFILE" ($FileName -replace '(.*?)\..*','$1.md') -Force
+            }
+        } else {
+            Move-Item "$TMPFILE" ($FileName -replace '(.*?)\..*','$1.md')
+        }
     } else {
         Remove-Item "$TMPFILE"
     }
@@ -580,6 +588,42 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
 
 function New-AllPostsPage {
     # was all_posts
+    Get-GlobalVariables
+    Write-Progress -Activity "Creating index page with all posts" -Status "Getting posts" -PercentComplete 0
+    $ContentFile = "$Script:archive_index.$(Get-Random)"
+    While (Test-Path $ContentFile) {$ContentFile = "$Script:archive_index.$(Get-Random)"}
+    Invoke-Command -ScriptBlock {
+        Write-Output "<h3>$Script:template_archive_title</h3>"
+        $prev_month=$null
+        $Posts = Get-ChildItem -Filter "*.html" | Sort-Object -Property LastWriteTime -Descending
+        $i=0
+        $prev_month=$null
+        Foreach ($Post in $Posts) {
+            $i=$i+1
+            If (Test-BoilerplateFile $Post) { continue }
+            Write-Progress -Activity "Creating index page with all posts" -Status "Post: $($Post.Name)" -PercentComplete ($i/$Posts.Count*100)
+            # Month headers
+            $month = Get-Date $Post.LastWriteTime -Format $Script:date_allposts_header
+            If ($month -ne $prev_month) {
+                If ($prev_month) { Write-Output "</ul>" }
+                Write-Output "<h4 class='allposts_header'>$month</h4>"
+                Write-Output "<ul>"
+                $prev_month=$month
+            }
+            # Title
+            $Title = Get-PostTitle $Post
+            $Output = "<li><a href=`"$($Post.Name)`">$Title</a> &mdash;"
+            $Date = Get-Date $Post.LastWriteTime -Format "$Script:date_format"
+            Write-Output "${Output}${Date}</li>"
+        }
+        Write-Output ""
+        Write-Output "</ul>"
+        Write-Output "<div id=`"all_posts`"><a href=`"$Script:index_file`">$Script:template_archive_index_page</a></div>"
+    } | Out-File $ContentFile
+
+    New-HTMLPage "$contentfile" "$Script:archive_index.tmp" -Index -Title "$Scipt:global_title &mdash; $Script:template_archive_title"
+    Move-Item "$Script:archive_index.tmp" "$Script:archive_index" -Force
+    Remove-Item "$contentfile"
 }
 
 function New-AllTagsPage {
