@@ -896,9 +896,42 @@ function New-CSS {
 }
 
 function Build-AllEntries {
+    [CmdletBinding()]
+    Param()
     # was rebuild_all_entries
     Write-Verbose "Building all entries"
+    Get-GlobalVariables
+    $HtmlFiles = Get-ChildItem -Filter "*.html"
+    $i=0
+    Foreach ($HtmlFile in $HtmlFiles) {
+        $i=$i+1
+        If (Test-BoilerplateFile $HtmlFile) { continue }
+        $ContentFile = ".tmp.$(Get-Random)"
+        While (Test-Path $ContentFile) { $ContentFile = ".tmp.$(Get-Random)" }
+        Write-Progress -Activity "Rebuilding all entries" -Status "Rebuilding $($HtmlFile.Name)" -PercentComplete ($i/$HtmlFiles.Count*100)
+        # Get the title and entry, and rebuild the html structure from scratch (divs, title, description...)
+        $Title = Get-PostTitle $HtmlFile.Name
+        Get-Content $HtmlFile | Get-HTMLFileContent 'text' 'text' | Out-File $ContentFile -Append
+        # Read timestamp from post, if present, and sync file timestamp
+        $Timestamp=Select-String "<!-- ${Script:date_inpost}: #(.+)# -->" $HtmlFile | ForEach-Object {
+            Write-Verbose "Trying to set datetime with $($_.Matches.Groups[1].Value)"
+            [DateTime]::ParseExact($_.Matches.Groups[1].Value,$Script:date_format_timestamp,$null)}
+        If ($Timestamp) { 
+            Write-Verbose "Found timestamp: $Timestamp on $($HtmlFile.Name)"
+            Set-FileTimestamp -FileName $HtmlFile -Timestamp $Timestamp | Out-Null
+        }
+        # Read timestamp from file in correct format for 'create_html_page'
+        $Timestamp = (Get-Date (Get-Item $HtmlFile).LastWriteTime -Format $Script:date_format_full) -replace '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)','$1, $2$3$4'
 
+        New-HTMLPage $ContentFile "$HtmlFile.rebuilt" -Title $Title -Timestamp $Timestamp -Author (Get-PostAuthor $HtmlFile)
+
+        # keep the original timestamp!
+        $timestamp = (Get-Item $HtmlFile).LastWriteTime
+        Move-Item "$HtmlFile.rebuilt" "$HtmlFile" -Force
+        Set-FileTimestamp -FileName $HtmlFile -Timestamp $Timestamp | Out-null
+        Remove-Item $ContentFile -Force
+    }
+    Write-Progress -Activity "Rebuilding all entries" -Status "Finished" -Completed
 }
 
 function Reset-BlogSite {
