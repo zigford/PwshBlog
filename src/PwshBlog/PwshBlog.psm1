@@ -285,9 +285,7 @@ function Edit-BlogPost {
             [switch]$Full
         )
 
-    Test-Editor 
-    New-CSS
-    New-Includes
+    Initialize-PwshBlog
     $File=Get-Item $FileName
     $Orig_FileName=$FileName
     # Original post timestamp
@@ -338,9 +336,9 @@ function Edit-BlogPost {
     $relevant_tags=$tags_before+$tags_after | Sort-Object -Unique
     if ($relevant_tags) {
         $relevant_posts=(Find-PostsWithTags $relevant_tags)+$FileName
-        Build-Tags -Posts $relevant_posts -Tags $relevant_tags
+        Update-Tags -Posts $relevant_posts -Tags $relevant_tags
     }
-    Remove-Includes
+    Exit-PwshBlog
 }
 
 function Get-TwitterCard {
@@ -511,8 +509,7 @@ function New-BlogPost {
         [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName
     )
     
-    New-Includes
-    New-CSS
+    Initialize-PwshBlog
     $Fmt = If ( $HTML ) { 'html' } else { 'md' }
     If ($FileName) {
         $TMPFILE = Get-Item $FileName
@@ -581,14 +578,15 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
     $relevant_tags = Find-TagsInPost $FileName
     If ($relevant_tags) {
         $relevant_posts=(Find-PostsWithTags $relevant_tags)+$FileName
-        Build-Tags -Posts $relevant_posts -Tags $relevant_tags
+        Update-Tags -Posts $relevant_posts -Tags $relevant_tags
     }
-    Remove-Includes
+    Exit-PwshBlog
 }
 
-function New-AllPostsPage {
+function Update-AllPosts {
+    [CmdLetBinding()]
+    Param()
     # was all_posts
-    Get-GlobalVariables
     Write-Progress -Activity "Creating index page with all posts" -Status "Getting posts" -PercentComplete 0
     $ContentFile = "$Script:archive_index.$(Get-Random)"
     While (Test-Path $ContentFile) {$ContentFile = "$Script:archive_index.$(Get-Random)"}
@@ -626,18 +624,47 @@ function New-AllPostsPage {
     Remove-Item "$contentfile"
 }
 
-function New-AllTagsPage {
+function Update-AllTags {
     # was all_tags
+    Write-Progress -Activity "Creating an index page with all the tags" -Status "Reading tag files" -PercentComplete 0
+    $i=0
+    $ContentFile="${Script:tags_index}.$(Get-Random)"
+
+    while (Test-Path $ContentFile) {
+        $ContentFile="${Script:tags_index}.$(Get-Random)"
+    }
+
+    Invoke-Command -ScriptBlock {
+        Write-Output "<h3>${Script:template_tags_title}</h3>"
+        Write-Output "<ul>"
+        $TagFiles = Get-ChildItem -Filter "${Script:prefix_tags}*.html"
+        Foreach ($TagFile in $TagFiles) {
+            $i=$i+1
+            If (!(Test-Path $TagFile)) { break }
+            $TagName=$TagFile.Name -replace "^${Script:prefix_tags}([^\.]*).*",'$1'
+            Write-Progress -Activity "Creating an index page with all the tags" -Status "$TagName" -PercentComplete ($i/$TagFiles.Count*100)
+            $NPosts = (Select-String '<!-- text begin -->' $TagFile).Count
+            $Word = Switch ($NPosts) {
+                1 {$Script:template_tags_posts_singular}
+                {$_ -ge 2 -and $_ -le 4} {$Script:template_tags_posts_2_4}
+                Default  {$Script:template_tags_posts}
+            }
+            Write-Output "<li><a href=`"$($TagFile.Name)`">$TagName</a> &mdash; $NPosts $Word</li>"
+        }
+        Write-Output "</ul>"
+        Write-Output "<div id=`"all_posts`"><a href=`"./$Script:index_file`">$Script:template_archive_index_page</a></div>"
+    } | Out-File "$ContentFile"
+
+    New-HTMLPage "$ContentFile" "${Script:tags_index}.tmp" -Index -Title "$Script:global_title &mdash; $Script:template_tags_title"
+    Move-Item "${Script:tags_index}.tmp" "${Script:tags_index}" -Force
+    Remove-Item "$contentfile" -Force
 }
 
-function Build-Index {
+function Update-Index {
     [CmdLetBinding()]
     Param()
 
     # was rebuild_index
-    Get-GlobalVariables
-    New-CSS
-    New-Includes
     Write-Verbose "Building the index"
     $NewIndexFile="${Script:index_file}.$(Get-Random)"
     $ContentFile="${NewIndexFile}.content"
@@ -678,7 +705,6 @@ function Build-Index {
     New-HTMLPage "$contentfile" "$newindexfile" -Index -Title "$Script:global_title"
     Remove-Item "$contentfile"
     Move-Item "$newindexfile" "$Script:index_file" -Force
-    Remove-Includes
 }
 
 # Finds all tags referenced in one post.
@@ -720,7 +746,7 @@ function Find-PostsWithTags {
     }
 }
 
-function Build-Tags {
+function Update-Tags {
     # was rebuild_tags
     [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='Medium')]
     Param(
@@ -808,7 +834,7 @@ function Get-PostAuthor {
     ForEach-Object {$PSItem.Context.PostContext[0]}
 }
 
-function Get-Tags {
+function Get-BlogTags {
     [CmdletBinding()]
     Param([switch]$Sort)
 
@@ -830,7 +856,7 @@ function Get-Tags {
     If ($Sort) { $Objects | Sort-Object -Property PostCount }
 }
 
-function Get-Posts {
+function Get-BlogPosts {
     # was list_posts
     $PostFiles = Get-ChildItem -Filter "*.html" |
     Sort-Object -Property LastWriteTime -Descending
@@ -847,7 +873,7 @@ function Get-Posts {
 
 }
 
-function New-RSSFeedFile {
+function Update-RSS {
     # was make_rss
 }
 
@@ -939,12 +965,11 @@ function New-CSS {
     }
 }
 
-function Build-AllEntries {
+function Update-BlogPosts {
     [CmdletBinding()]
     Param()
     # was rebuild_all_entries
     Write-Verbose "Building all entries"
-    Get-GlobalVariables
     $HtmlFiles = Get-ChildItem -Filter "*.html"
     $i=0
     Foreach ($HtmlFile in $HtmlFiles) {
@@ -1030,7 +1055,27 @@ function Test-Editor {
     }
 }
 
-function do_main {
+function Update-BlogSite {
+    [CmdLetBinding()]
+    Param()
+    Initialize-PwshBlog
+    Update-BlogPosts
+    Update-Tags
+    Exit-PwshBlog
+}
+
+function Remove-BlogPost {
+    [CmdLetBinding(SupportShouldProcess, ConfirmImpact='High')]
+    Param([System.IO.FileInfo]$File)
+    Initialize-PwshBlog
+    If ($PSCmdlet.ShouldProcess($File.Name, "Remove Blog post")) {
+        Remove-Item $File
+        Update-Tags
+    }
+    Exit-PwshBlog
+}
+
+function Initialize-PwshBlog {
     [CmdLetBinding()]
     Param()
     Get-GlobalVariables
@@ -1039,11 +1084,26 @@ function do_main {
         Invoke-Expression $config
     }
     Write-Verbose "Running version $global_software_version"
+    New-CSS
+    New-Includes
 }
 
-#Get-GlobalVariables
-#
-# MAIN
-# Do not change anything here. If you want to modify the code, edit do_main
-#
-do_main
+function Exit-PwshBlog {
+    [CmdLetBinding()]
+    Param()
+    Update-Index
+    Update-AllPosts
+    Update-AllTags
+    Update-RSS
+    Remove-Includes
+}
+
+Export-ModuleMember New-BlogPost
+Export-ModuleMember Edit-BlogPost
+Export-ModuleMember Get-BlogPosts
+Export-ModuleMember Get-BlogTags
+Export-ModuleMember Remove-BlogPost
+Export-ModuleMember Update-BlogSite
+
+
+# vim: set shiftwidth=4 tabstop=4 expandtab:
