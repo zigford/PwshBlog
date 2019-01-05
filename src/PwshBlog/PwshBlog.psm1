@@ -1028,28 +1028,32 @@ function ConvertFrom-BBConfig {
         If ($NewValue) { return $NewValue } else { return $Value }
     }
 
+    $HT = @{}
     Get-Content $ConfigFile | ForEach-Object {
         If ($_ -match '^[^#]\w+=.+') {
             $Value = ($_ -replace '.*?=(.*)','$1').Trim('" ')
             $Value = Test-EvenQuotes $Value
-            @{
-                $_.Split('=')[0] = $Value
-            }#>
+            $HT.Add($_.Split('=')[0],$Value)
         }
     }
+    $HT
 }
 
-function ConvertTo-PwshConfig
+function ConvertTo-PwshConfig {
     [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
     Param(
         [ValidateScript({Test-Path $_})]
-        [Parameter(ValueFromPipeline=$True)]$ConfigHashTable
+        [Parameter(ValueFromPipeline=$True)]$Settings
     )
     Begin {
         
     }
 
     Process {
+        $Settings.Keys | ForEach-Object {
+            $Line=$_ -replace '^','$Script:'
+
+        }
         
     }
 
