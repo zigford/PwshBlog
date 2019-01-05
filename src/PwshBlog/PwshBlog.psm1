@@ -251,7 +251,6 @@ function Get-HTMLFileContent {
         [switch]$Cut,
         [Parameter(ValueFromPipeLine=$True)][string]$Content
     )
-    #Begin {Get-GlobalVariables}
     Process {
         If ($_ -match "<!-- $Start begin -->"){
             $Capture = $True
@@ -352,6 +351,7 @@ function Get-TwitterCode {
 function Test-BoilerplateFile {
     [CmdLetBinding()]
     Param($Name)
+    Import-PwshConfig
     # Check if the file is a 'boilerplate' (i.e. not a post)
     If ($Name.Name) { $Name = $Name.Name }
     If ($Name -in $Script:non_blogpost_files) { return $True }
@@ -1007,6 +1007,55 @@ function Reset-BlogSite {
     # was reset
 }
 
+function ConvertFrom-BBConfig {
+    [CmdLetBinding()]
+    Param(
+        [ValidateScript({Test-Path $_})]
+        [Parameter(Mandatory=$True)]
+        [System.IO.FileInfo]$ConfigFile
+    )
+
+    function Test-EvenQuotes {
+    [CmdLetBinding()]
+        Param($Value)
+        # Test if the value has an even number of quotes. Return the string stripped of the final one if so.
+        $NewValue = '"',"'" | %{
+            $Count = $Value.Split($_).Count - 1
+            If ($Count -gt 0 -and [int]($Count/2) -ne $Count/2) { 
+                $Value -replace "(.*?)${_}.*",'$1' 
+            }
+        }
+        If ($NewValue) { return $NewValue } else { return $Value }
+    }
+
+    Get-Content $ConfigFile | ForEach-Object {
+        If ($_ -match '^[^#]\w+=.+') {
+            $Value = ($_ -replace '.*?=(.*)','$1').Trim('" ')
+            $Value = Test-EvenQuotes $Value
+            @{
+                $_.Split('=')[0] = $Value
+            }#>
+        }
+    }
+}
+
+function ConvertTo-PwshConfig
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
+    Param(
+        [ValidateScript({Test-Path $_})]
+        [Parameter(ValueFromPipeline=$True)]$ConfigHashTable
+    )
+    Begin {
+        
+    }
+
+    Process {
+        
+    }
+
+
+}
+
 #####
 # Other functions to implement missing features
 function Set-FileTimestamp {
@@ -1075,15 +1124,22 @@ function Remove-BlogPost {
     Exit-PwshBlog
 }
 
+function Import-PwshConfig {
+    If (!$Script:global_software_name){
+        Get-GlobalVariables
+        If (Test-Path "$Script:global_config") {
+            $config = Get-Content "$Script:global_config" | Out-String
+            Invoke-Expression $config
+        }
+        Test-GlobalVariables
+    }
+}
+
 function Initialize-PwshBlog {
     [CmdLetBinding()]
     Param()
-    Get-GlobalVariables
-    If (Test-Path "$Script:global_config") {
-        $config = Get-Content "$Script:global_config" | Out-String
-        Invoke-Expression $config
-    }
     Write-Verbose "Running version $global_software_version"
+    Import-PwshConfig
     New-CSS
     New-Includes
 }
@@ -1104,6 +1160,7 @@ Export-ModuleMember Get-BlogPosts
 Export-ModuleMember Get-BlogTags
 Export-ModuleMember Remove-BlogPost
 Export-ModuleMember Update-BlogSite
+Export-ModuleMember ConvertFrom-BBConfig
 
 
 # vim: set shiftwidth=4 tabstop=4 expandtab:
