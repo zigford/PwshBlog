@@ -1042,17 +1042,34 @@ function ConvertFrom-BBConfig {
 function ConvertTo-PwshConfig {
     [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
     Param(
-        [ValidateScript({Test-Path $_})]
         [Parameter(ValueFromPipeline=$True)]$Settings
     )
     Begin {
-        
+        Import-PwshConfig
+        function Reset-Variable {
+            Param($Name)
+            Write-Warning "$Name value cannot be converted from bb. Resetting to Pwsh default."
+            "$($Name -replace '^','$Script:')=`"$(Invoke-Expression `"`$Script:$Name`")`""
+        }
+        $Incompatible = 'convert_filename','date_format','date_format_timestamp','date_format_full','date_allposts_header','date_format_timestamp'
     }
 
     Process {
         $Settings.Keys | ForEach-Object {
-            $Line=$_ -replace '^','$Script:'
-
+            Switch ($_) {
+                'markdown_bin' {Write-Verbose "Markdown_bin not needed, stripping setting"}
+                'date_locale' {Write-Verbose "Markdown_bin not needed, stripping setting"}
+                {$_ -in $Incompatible} { Reset-Variable $_ }
+                Default {
+                    $Line = $_ -replace '^','$Script:'
+                    $Value = Switch ($Settings[$_]) {
+                        {$_ -match '^\('} { $_.Trim('()').Replace(' ',',')  }
+                        Default { "`"$_`"" }
+                    }
+                    $Line = "${Line}=${Value}"
+                    $Line
+                }
+            }
         }
         
     }
@@ -1133,7 +1150,11 @@ function Import-PwshConfig {
         Get-GlobalVariables
         If (Test-Path "$Script:global_config") {
             $config = Get-Content "$Script:global_config" | Out-String
-            Invoke-Expression $config
+            If ($config -match '^global') {
+                Write-Verbose "Bash style variables. Do not import"
+            } else {
+                Invoke-Expression $config
+            }
         }
         Test-GlobalVariables
     }
@@ -1165,6 +1186,7 @@ Export-ModuleMember Get-BlogTags
 Export-ModuleMember Remove-BlogPost
 Export-ModuleMember Update-BlogSite
 Export-ModuleMember ConvertFrom-BBConfig
+Export-ModuleMember ConvertTo-PwshConfig
 
 
 # vim: set shiftwidth=4 tabstop=4 expandtab:
