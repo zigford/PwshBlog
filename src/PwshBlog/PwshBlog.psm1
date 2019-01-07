@@ -1007,76 +1007,6 @@ function Reset-BlogSite {
     # was reset
 }
 
-function ConvertFrom-BBConfig {
-    [CmdLetBinding()]
-    Param(
-        [ValidateScript({Test-Path $_})]
-        [Parameter(Mandatory=$True)]
-        [System.IO.FileInfo]$ConfigFile
-    )
-
-    function Test-EvenQuotes {
-    [CmdLetBinding()]
-        Param($Value)
-        # Test if the value has an even number of quotes. Return the string stripped of the final one if so.
-        $NewValue = '"',"'" | %{
-            $Count = $Value.Split($_).Count - 1
-            If ($Count -gt 0 -and [int]($Count/2) -ne $Count/2) { 
-                $Value -replace "(.*?)${_}.*",'$1' 
-            }
-        }
-        If ($NewValue) { return $NewValue } else { return $Value }
-    }
-
-    $HT = @{}
-    Get-Content $ConfigFile | ForEach-Object {
-        If ($_ -match '^[^#]\w+=.+') {
-            $Value = ($_ -replace '.*?=(.*)','$1').Trim('" ')
-            $Value = Test-EvenQuotes $Value
-            $HT.Add($_.Split('=')[0],$Value)
-        }
-    }
-    $HT
-}
-
-function ConvertTo-PwshConfig {
-    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
-    Param(
-        [Parameter(ValueFromPipeline=$True)]$Settings
-    )
-    Begin {
-        Import-PwshConfig
-        function Reset-Variable {
-            Param($Name)
-            Write-Warning "$Name value cannot be converted from bb. Resetting to Pwsh default."
-            "$($Name -replace '^','$Script:')=`"$(Invoke-Expression `"`$Script:$Name`")`""
-        }
-        $Incompatible = 'convert_filename','date_format','date_format_timestamp','date_format_full','date_allposts_header','date_format_timestamp'
-    }
-
-    Process {
-        $Settings.Keys | ForEach-Object {
-            Switch ($_) {
-                'markdown_bin' {Write-Verbose "Markdown_bin not needed, stripping setting"}
-                'date_locale' {Write-Verbose "Markdown_bin not needed, stripping setting"}
-                {$_ -in $Incompatible} { Reset-Variable $_ }
-                Default {
-                    $Line = $_ -replace '^','$Script:'
-                    $Value = Switch ($Settings[$_]) {
-                        {$_ -match '^\('} { $_.Trim('()').Replace(' ',',')  }
-                        Default { "`"$_`"" }
-                    }
-                    $Line = "${Line}=${Value}"
-                    $Line
-                }
-            }
-        }
-        
-    }
-
-
-}
-
 #####
 # Other functions to implement missing features
 function Set-FileTimestamp {
@@ -1145,18 +1075,159 @@ function Remove-BlogPost {
     Exit-PwshBlog
 }
 
+function ConvertFrom-BBConfig {
+    [CmdLetBinding()]
+    Param(
+        [ValidateScript({Test-Path $_})]
+        [Parameter(Mandatory=$True)]
+        [System.IO.FileInfo]$ConfigFile
+    )
+
+    function Test-EvenQuotes {
+    [CmdLetBinding()]
+        Param($Value)
+        # Test if the value has an even number of quotes. Return the string stripped of the final one if so.
+        $NewValue = '"',"'" | %{
+            $Count = $Value.Split($_).Count - 1
+            If ($Count -gt 0 -and [int]($Count/2) -ne $Count/2) { 
+                $Value -replace "(.*?)${_}.*",'$1' 
+            }
+        }
+        If ($NewValue) { return $NewValue } else { return $Value }
+    }
+
+    $HT = @{}
+    Get-Content $ConfigFile | ForEach-Object {
+        If ($_ -match '^[^#]\w+=.+') {
+            $Value = ($_ -replace '.*?=(.*)','$1').Trim('" ')
+            $Value = Test-EvenQuotes $Value
+            $HT.Add($_.Split('=')[0],$Value)
+        }
+    }
+    $HT
+}
+
+function New-PwshConfigFile {
+    [CmdLetBinding(SupportsShouldProcess)]
+    Param()
+
+    Import-PwshConfig
+
+    # Check if a config exists
+    If (Test-Path -Path .config) {
+        #Is is a bb file
+        $config = Get-Content "$Script:global_config" | Out-String
+        If (!(Test-PwshConfig $config)) {
+            ## version detected. Offer to upgrade
+            $i = $null
+            Write-Output "An existing BashBlog config has been detected"
+            While ($i -notmatch '[urc]') {
+                $i = Read-Host "[U]pgrade config file, [R]eplace with defaults, [C]ancel? (u/R/c)"
+            }
+            If ($i -eq 'c') { break }
+            If ($u -eq 'u') {
+                "upgrade"
+
+            } else {
+
+                # Get a list of variables from this module
+                #
+                If ($PSCmdlet.ShouldProcess(".config","Overwrite with defaults")) {
+                    Set-Content "$Script:global_config" -Value ""
+                    Get-PwshOptions | %{ "`$Script:$($_.Name)=$($_.Value)" | Out-File -Path "$Script:global_config" -Append}
+                } else {
+                    Get-PwshOptions | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) }
+                }
+            }
+        }
+
+    }
+
+}
+
+function Get-PwshOptions {
+    'global_software_name','global_software_version','global_title','global_description','global_url','global_author','global_author_url','global_email','global_license','global_analytics','global_analytics_file','global_feedburner','global_twitter_username','global_twitter_cookieless','global_twitter_search','global_disqus_username','index_file','number_of_index_articles','archive_index','tags_index','non_blogpost_files','blog_feed','number_of_feed_articles','cut_do','cut_tags','cut_line','save_markdown','prefix_tags','header_file','footer_file','body_begin_file','body_end_file','css_include','html_exclude','template_comments','template_read_more','template_archive','template_archive_title','template_tags_title','template_tags_posts','template_tags_posts_2_4','template_tags_posts_singular','template_tag_title','template_tags_line_header','template_archive_index_page','template_subscribe','template_subscribe_browser_button','template_twitter_button','template_twitter_comment','date_format','date_locale','date_inpost','date_format_full','date_format_timestamp','date_allposts_header','convert_filename','preview_url' | ForEach-Object { [PSCustomObject]@{'Name'=$_;'Value'=Get-PwshDefaultSetting $_ } }
+    }
+
+function Get-PwshDefaultSetting {
+    Param($Name)
+    $v=Invoke-Expression "`$Script:$Name"
+    If ($v -is [string]) {
+        "`"$v`""
+    } elseif ($v -is [array]) {
+       "$($v|%{$_})" -replace '^(.*)$','@($1)' -replace ' ',','
+    } else {
+       "@()"
+    }
+
+}
+
+function ConvertTo-PwshConfig {
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
+    Param(
+        [Parameter(ValueFromPipeline=$True)]$Settings
+    )
+    Begin {
+        $HT=@{}
+        Import-PwshConfig
+        $Incompatible = 'convert_filename','date_format','date_format_timestamp','date_format_full','date_allposts_header','date_format_timestamp'
+    }
+
+    Process {
+        $Settings.Keys | ForEach-Object {
+            $Value = Switch ($_) {
+                'markdown_bin' {Write-Verbose "Markdown_bin not needed, stripping setting"}
+                'date_locale' {Write-Verbose "Markdown_bin not needed, stripping setting"}
+                {$_ -in $Incompatible} { 
+                    Get-PwshDefaultSetting $_
+                    Write-Warning "$_ value cannot be converted from bb. Resetting to Pwsh default."
+                }
+                Default {
+                    $Value = $Settings[$_]
+                    if ($Value -match '^\(') {
+                        $Value.Trim('()').Replace(' ',',')  
+                    } else { "`"$Value`"" }
+                }
+            }
+            $HT.Add($_,$Value)
+        }
+        
+    }
+    End {
+        $HT
+    }
+}
+
 function Import-PwshConfig {
+    [CmdLetBinding()]
+    Param()
     If (!$Script:global_software_name){
         Get-GlobalVariables
         If (Test-Path "$Script:global_config") {
             $config = Get-Content "$Script:global_config" | Out-String
-            If ($config -match '^global') {
-                Write-Verbose "Bash style variables. Do not import"
-            } else {
+            If (Test-PwshConfig $config) {
+                Write-Verbose "Configuration valid. Importing "
                 Invoke-Expression $config
+            } else {
+                Write-Verbose "Invalid configuration detected."
             }
         }
         Test-GlobalVariables
+    }
+}
+
+function Test-PwshConfig {
+    [CmdLetBinding()]
+    Param([string]$config)
+    If ($config -match '^global') {
+        Write-Verbose "Bash style variables detected in config"
+        return $False
+    } elseif ($config -match '^$Script:global') {
+        Write-Verbose "Powershell style variables detected in config"
+        return $True
+    } else {
+        Write-Verbose "Something went wrong with the configuration file"
+        return $False
     }
 }
 
@@ -1179,14 +1250,13 @@ function Exit-PwshBlog {
     Remove-Includes
 }
 
+<#
 Export-ModuleMember New-BlogPost
 Export-ModuleMember Edit-BlogPost
 Export-ModuleMember Get-BlogPosts
 Export-ModuleMember Get-BlogTags
 Export-ModuleMember Remove-BlogPost
 Export-ModuleMember Update-BlogSite
-Export-ModuleMember ConvertFrom-BBConfig
-Export-ModuleMember ConvertTo-PwshConfig
-
+#>
 
 # vim: set shiftwidth=4 tabstop=4 expandtab:
