@@ -69,7 +69,7 @@ function Get-GlobalVariables {
 
     # Non blogpost files. Bashblog will ignore these. Useful for static pages and custom content
     # Add them as a bash array, e.g. non_blogpost_files=("news.html" "test.html")
-    $Script:non_blogpost_files=@('about.html','links.html','gnu-linux.html','macos.html','the-bsds.html','my-setup.html','todo.html','visitors.html')
+    $Script:non_blogpost_files=@()
 
     # feed file (rss in this case)
     $Script:blog_feed="feed.rss"
@@ -102,7 +102,7 @@ function Get-GlobalVariables {
     # leave empty to use generated
     $Script:css_include=@()
     # HTML files to exclude from index, f.ex. post_exclude=('imprint.html 'aboutme.html')
-    $Script:html_exclude=@('windows.html','scripts.html','visitors.html')
+    $Script:html_exclude=@()
 
     # Localization and i18n
     # "Comments?" (used in twitter link after every post)
@@ -284,7 +284,7 @@ function Edit-BlogPost {
             [switch]$Full
         )
 
-    Initialize-PwshBlog
+    Initialize-Blog
     $File=Get-Item $FileName
     $Orig_FileName=$FileName
     # Original post timestamp
@@ -351,7 +351,7 @@ function Get-TwitterCode {
 function Test-BoilerplateFile {
     [CmdLetBinding()]
     Param($Name)
-    Import-PwshConfig
+    Import-Config
     # Check if the file is a 'boilerplate' (i.e. not a post)
     If ($Name.Name) { $Name = $Name.Name }
     If ($Name -in $Script:non_blogpost_files) { return $True }
@@ -509,7 +509,7 @@ function New-BlogPost {
         [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName
     )
     
-    Initialize-PwshBlog
+    Initialize-Blog
     $Fmt = If ( $HTML ) { 'html' } else { 'md' }
     If ($FileName) {
         $TMPFILE = Get-Item $FileName
@@ -1004,7 +1004,17 @@ function Update-BlogPosts {
 }
 
 function Reset-BlogSite {
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
+    Param()
+
     # was reset
+    If ($PSCmdlet.ShouldProcess("All html, css and rss files", "Delete")) {
+        '.*.html', '*.html', '*.css', '*.rss' |
+        ForEach-Object {
+            Remove-Item $_ -Force
+        }
+    }
+
 }
 
 #####
@@ -1058,7 +1068,7 @@ function Test-Editor {
 function Update-BlogSite {
     [CmdLetBinding()]
     Param()
-    Initialize-PwshBlog
+    Initialize-Blog
     Update-BlogPosts
     Update-Tags
     Exit-PwshBlog
@@ -1067,7 +1077,7 @@ function Update-BlogSite {
 function Remove-BlogPost {
     [CmdLetBinding(SupportShouldProcess, ConfirmImpact='High')]
     Param([System.IO.FileInfo]$File)
-    Initialize-PwshBlog
+    Initialize-Blog
     If ($PSCmdlet.ShouldProcess($File.Name, "Remove Blog post")) {
         Remove-Item $File
         Update-Tags
@@ -1107,17 +1117,17 @@ function ConvertFrom-BBConfig {
     $HT
 }
 
-function New-PwshConfigFile {
+function New-BlogConfig {
     [CmdLetBinding(SupportsShouldProcess)]
     Param()
 
-    Import-PwshConfig
+    Import-Config
 
     # Check if a config exists
     If (Test-Path -Path .config) {
         #Is is a bb file
         $config = Get-Content "$Script:global_config" | Out-String
-        If (!(Test-PwshConfig $config)) {
+        If (!(Test-Config $config)) {
             ## version detected. Offer to upgrade
             $i = $null
             Write-Output "An existing BashBlog config has been detected"
@@ -1126,18 +1136,21 @@ function New-PwshConfigFile {
             }
             If ($i -eq 'c') { break }
             If ($u -eq 'u') {
-                "upgrade"
+
+                $Settings = ConvertFrom-BBConfig "$Script:global_config" | ConvertTo-PwshConfig 
 
             } else {
 
                 # Get a list of variables from this module
                 #
-                If ($PSCmdlet.ShouldProcess(".config","Overwrite with defaults")) {
-                    Set-Content "$Script:global_config" -Value ""
-                    Get-PwshOptions | %{ "`$Script:$($_.Name)=$($_.Value)" | Out-File -Path "$Script:global_config" -Append}
-                } else {
-                    Get-PwshOptions | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) }
-                }
+                $Settings = Get-Options | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) }
+            }
+
+            If ($PSCmdlet.ShouldProcess(".config","Overwrite")) {
+                Set-Content "$Script:global_config" -Value ""
+                $Settings | Out-File -Path "$Script:global_config" -Append
+            } else {
+                $Settings
             }
         }
 
@@ -1145,11 +1158,11 @@ function New-PwshConfigFile {
 
 }
 
-function Get-PwshOptions {
-    'global_software_name','global_software_version','global_title','global_description','global_url','global_author','global_author_url','global_email','global_license','global_analytics','global_analytics_file','global_feedburner','global_twitter_username','global_twitter_cookieless','global_twitter_search','global_disqus_username','index_file','number_of_index_articles','archive_index','tags_index','non_blogpost_files','blog_feed','number_of_feed_articles','cut_do','cut_tags','cut_line','save_markdown','prefix_tags','header_file','footer_file','body_begin_file','body_end_file','css_include','html_exclude','template_comments','template_read_more','template_archive','template_archive_title','template_tags_title','template_tags_posts','template_tags_posts_2_4','template_tags_posts_singular','template_tag_title','template_tags_line_header','template_archive_index_page','template_subscribe','template_subscribe_browser_button','template_twitter_button','template_twitter_comment','date_format','date_locale','date_inpost','date_format_full','date_format_timestamp','date_allposts_header','convert_filename','preview_url' | ForEach-Object { [PSCustomObject]@{'Name'=$_;'Value'=Get-PwshDefaultSetting $_ } }
+function Get-Options {
+    'global_software_name','global_software_version','global_title','global_description','global_url','global_author','global_author_url','global_email','global_license','global_analytics','global_analytics_file','global_feedburner','global_twitter_username','global_twitter_cookieless','global_twitter_search','global_disqus_username','index_file','number_of_index_articles','archive_index','tags_index','non_blogpost_files','blog_feed','number_of_feed_articles','cut_do','cut_tags','cut_line','save_markdown','prefix_tags','header_file','footer_file','body_begin_file','body_end_file','css_include','html_exclude','template_comments','template_read_more','template_archive','template_archive_title','template_tags_title','template_tags_posts','template_tags_posts_2_4','template_tags_posts_singular','template_tag_title','template_tags_line_header','template_archive_index_page','template_subscribe','template_subscribe_browser_button','template_twitter_button','template_twitter_comment','date_format','date_locale','date_inpost','date_format_full','date_format_timestamp','date_allposts_header','convert_filename','preview_url' | ForEach-Object { [PSCustomObject]@{'Name'=$_;'Value'=Get-DefaultSetting $_ } }
     }
 
-function Get-PwshDefaultSetting {
+function Get-DefaultSetting {
     Param($Name)
     $v=Invoke-Expression "`$Script:$Name"
     If ($v -is [string]) {
@@ -1169,7 +1182,7 @@ function ConvertTo-PwshConfig {
     )
     Begin {
         $HT=@{}
-        Import-PwshConfig
+        Import-Config
         $Incompatible = 'convert_filename','date_format','date_format_timestamp','date_format_full','date_allposts_header','date_format_timestamp'
     }
 
@@ -1179,7 +1192,7 @@ function ConvertTo-PwshConfig {
                 'markdown_bin' {Write-Verbose "Markdown_bin not needed, stripping setting"}
                 'date_locale' {Write-Verbose "Markdown_bin not needed, stripping setting"}
                 {$_ -in $Incompatible} { 
-                    Get-PwshDefaultSetting $_
+                    Get-DefaultSetting $_
                     Write-Warning "$_ value cannot be converted from bb. Resetting to Pwsh default."
                 }
                 Default {
@@ -1198,14 +1211,14 @@ function ConvertTo-PwshConfig {
     }
 }
 
-function Import-PwshConfig {
+function Import-Config {
     [CmdLetBinding()]
     Param()
     If (!$Script:global_software_name){
         Get-GlobalVariables
         If (Test-Path "$Script:global_config") {
             $config = Get-Content "$Script:global_config" | Out-String
-            If (Test-PwshConfig $config) {
+            If (Test-Config $config) {
                 Write-Verbose "Configuration valid. Importing "
                 Invoke-Expression $config
             } else {
@@ -1216,7 +1229,7 @@ function Import-PwshConfig {
     }
 }
 
-function Test-PwshConfig {
+function Test-Config {
     [CmdLetBinding()]
     Param([string]$config)
     If ($config -match '^global') {
@@ -1231,11 +1244,11 @@ function Test-PwshConfig {
     }
 }
 
-function Initialize-PwshBlog {
+function Initialize-Blog {
     [CmdLetBinding()]
     Param()
     Write-Verbose "Running version $global_software_version"
-    Import-PwshConfig
+    Import-Config
     New-CSS
     New-Includes
 }
@@ -1250,13 +1263,13 @@ function Exit-PwshBlog {
     Remove-Includes
 }
 
-<#
 Export-ModuleMember New-BlogPost
 Export-ModuleMember Edit-BlogPost
 Export-ModuleMember Get-BlogPosts
 Export-ModuleMember Get-BlogTags
 Export-ModuleMember Remove-BlogPost
 Export-ModuleMember Update-BlogSite
-#>
+Export-ModuleMember New-BlogConfig
+Export-ModuleMember Reset-BlogSite 
 
 # vim: set shiftwidth=4 tabstop=4 expandtab:
