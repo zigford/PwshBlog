@@ -192,7 +192,7 @@ function Get-JSContent {
         GoogleAnalytics {
             if (!$Script:global_analytics -and !$Script:global_analytics_file) { return }
             if (!$Script:global_analytics_file) {
-                Write-Output "<script type=`"text/javascript`">
+                "<script type=`"text/javascript`">
 
         var _gaq = _gaq || [];
         _gaq.push(['_setAccount', '${Script:global_analytics}']);
@@ -211,7 +211,7 @@ function Get-JSContent {
         }
         DisqusBody {
             if (!$Script:global_disqus_username) { return }
-            Write-Output '<div id="disqus_thread"></div>
+            '<div id="disqus_thread"></div>
             <script type="text/javascript">
             /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
                var disqus_shortname = '"'$Script:global_disqus_username'"'; // required: replace example with your forum shortname
@@ -228,7 +228,7 @@ function Get-JSContent {
         }
         DisqusFooter {
             if (!$Script:global_disqus_username) { return }
-            Write-Output '<script type="text/javascript">
+            '<script type="text/javascript">
         /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
         var disqus_shortname = '"'$Script:global_disqus_username'"'; // required: replace example with your forum shortname
 
