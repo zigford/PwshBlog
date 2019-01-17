@@ -681,7 +681,7 @@ function Update-Index {
                 Get-Content $Post | Get-HTMLFileContent "entry" "entry" -Cut |
                 ForEach-Object {
                     If ($_ -match "$Script:cut_line") {
-                        Write-Output "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
+                        "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
                     } else {
                         $_
                     }
@@ -695,7 +695,7 @@ function Update-Index {
 
     $Feed=$Script:blog_feed
     if ($Script:global_feedburner) { $Feed=$Script:global_feedburner }
-    Write-Output "<div id=`"all_posts`"><a href=`"$Script:archive_index`">$Script:template_archive</a> &mdash; <a href=`"$Script:tags_index`">$Script:template_tags_title</a> &mdash; <a href=`"$Feed`">$Script:template_subscribe</a></div>" | Out-File "$contentfile" -Append
+    "<div id=`"all_posts`"><a href=`"$Script:archive_index`">$Script:template_archive</a> &mdash; <a href=`"$Script:tags_index`">$Script:template_tags_title</a> &mdash; <a href=`"$Feed`">$Script:template_subscribe</a></div>" | Out-File "$contentfile" -Append
 
     New-HTMLPage "$contentfile" "$newindexfile" -Index -Title "$Script:global_title"
     Remove-Item "$contentfile"
