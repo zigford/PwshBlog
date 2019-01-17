@@ -920,7 +920,7 @@ function New-CSS {
 
     If (!(Test-Path -Path blog.css)) {
         # blog.css directives will be loaded after main.css and thus will prevail
-        Write-Output '#title{font-size: x-large;}
+        '#title{font-size: x-large;}
         a.ablack{color:black !important;}
         li{margin-bottom:8px;}
         ul,ol{margin-left:24px;margin-right:24px;}
@@ -941,7 +941,7 @@ function New-CSS {
     If ((Test-Path -Path ../style.css) -and !(Test-Path -Path main.css)) {
         ln -s "../style.css" "main.css" 
     } elseif (!(Test-Path -Path main.css)) {
-        Write-Output 'body{font-family:Georgia,"Times New Roman",Times,serif;margin:0;padding:0;background-color:#F3F3F3;}
+        'body{font-family:Georgia,"Times New Roman",Times,serif;margin:0;padding:0;background-color:#F3F3F3;}
         #divbodyholder{padding:5px;background-color:#DDD;width:100%;max-width:874px;margin:24px auto;}
         #divbody{border:solid 1px #ccc;background-color:#fff;padding:0px 48px 24px 48px;top:0;}
         .headerholder{background-color:#f9f9f9;border-top:solid 1px #ccc;border-left:solid 1px #ccc;border-right:solid 1px #ccc;}
