@@ -382,37 +382,37 @@ Param(
     Write-Verbose "Creating new html page $FileName"
     Invoke-Command -ScriptBlock {
         Get-Content '.header.html'
-        Write-Output "<title>$Title</title>"
+        "<title>$Title</title>"
         Get-JSContent -Code GoogleAnalytics
         #twitter_card "$content" "$title" ## Not implemented yet ##
-        Write-Output "</head><body>"
+        "</head><body>"
         # stuff to add before the actual body content
         If ($Script:body_begin_file) { Get-Content "$Script:body_begin_file" }
         # body divs
-        Write-Output '<div id="divbodyholder">'
-        Write-Output '<div class="headerholder"><div class="header">'
+        '<div id="divbodyholder">'
+        '<div class="headerholder"><div class="header">'
         # blog title
-        Write-Output '<div id="title">'
+        '<div id="title">'
         Get-Content .title.html
-        Write-Output '</div></div></div>' # title, header, headerholder
-        Write-Output '<div id="divbody"><div class="content">'
+        '</div></div></div>' # title, header, headerholder
+        '<div id="divbody"><div class="content">'
 
         $FileUrl=(Get-Item $FileName).Name
         $FileUrl=$FileUrl.Replace('\\\.rebuilt','') # get the correct url when rebuilding
         # one blog entry
         if (!$Index) {
-            Write-Output '<!-- entry begin -->' # marks the beginning of the whole post
-            Write-Output "<h3><a class=`"ablack`" href=`"$FileUrl`">"
+            '<!-- entry begin -->' # marks the beginning of the whole post
+            "<h3><a class=`"ablack`" href=`"$FileUrl`">"
             # remove possible <p>'s on the title because of markdown conversion
             $Matches = $Null
             $Title -match '<[pP]>(?<title>.*)</[pP]>' | Out-Null
             If ($Matches) { $Title=$Matches['title'] }
-            Write-Output "$Title"
-            Write-Output '</a></h3>'
+            $Title
+            '</a></h3>'
             if (!$Timestamp) {
-                Write-Output "<!-- $date_inpost`: #$(Get-Date -Format "$Script:date_format_timestamp")# -->"
+                "<!-- $date_inpost`: #$(Get-Date -Format "$Script:date_format_timestamp")# -->"
             } else {
-                Write-Output "<!-- $date_inpost`: #$(Get-Date $Timestamp -Format "$Script:date_format_timestamp")# -->"
+                "<!-- $date_inpost`: #$(Get-Date $Timestamp -Format "$Script:date_format_timestamp")# -->"
             }
             if (!$Timestamp) {
                 $DivOutput = "<div class=`"subtitle`">$(Get-Date -Format "$Script:date_format")"
@@ -421,19 +421,19 @@ Param(
             }
 
             If ($Author) { $DivOutput += " &mdash; `n$Author`n" }
-            Write-Output "$DivOutput</div>"
-            Write-Output '<!-- text begin -->' # this marks the text body, after the title, date...
+            "$DivOutput</div>"
+            '<!-- text begin -->' # this marks the text body, after the title, date...
         }
         Get-Content $Content # actual content
         if (!$Index) {
-            Write-Output "`n<!-- text end -->"
+            "`n<!-- text end -->"
 
             #twitter "$global_url/$file_url"
 
-            Write-Output '<!-- entry end -->' # absolute end of the post
+            '<!-- entry end -->' # absolute end of the post
         }
 
-        Write-Output '</div>' # content
+        '</div>' # content
 
         # Add disqus commments except for index and all_posts pages
         If (!$Index) { Get-JSContent -Code DisqusBody }
@@ -441,10 +441,10 @@ Param(
         # page footer
         Get-Content .footer.html
         # close divs
-        Write-Output '</div></div>' # divbody and divbodyholder 
+        '</div></div>' # divbody and divbodyholder 
         Get-JSContent -Code DisqusFooter
         If ($Script:body_end_file) { Get-Content "$body_end_file" }
-        Write-Output '</body></html>'
+        '</body></html>'
     } | Out-File "$FileName"
 }
 
