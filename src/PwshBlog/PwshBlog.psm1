@@ -630,8 +630,8 @@ function Update-AllTags {
     }
 
     Invoke-Command -ScriptBlock {
-        Write-Output "<h3>${Script:template_tags_title}</h3>"
-        Write-Output "<ul>"
+        "<h3>${Script:template_tags_title}</h3>"
+        "<ul>"
         $TagFiles = Get-ChildItem -Filter "${Script:prefix_tags}*.html"
         Foreach ($TagFile in $TagFiles) {
             $i=$i+1
@@ -644,10 +644,10 @@ function Update-AllTags {
                 {$_ -ge 2 -and $_ -le 4} {$Script:template_tags_posts_2_4}
                 Default  {$Script:template_tags_posts}
             }
-            Write-Output "<li><a href=`"$($TagFile.Name)`">$TagName</a> &mdash; $NPosts $Word</li>"
+            "<li><a href=`"$($TagFile.Name)`">$TagName</a> &mdash; $NPosts $Word</li>"
         }
-        Write-Output "</ul>"
-        Write-Output "<div id=`"all_posts`"><a href=`"./$Script:index_file`">$Script:template_archive_index_page</a></div>"
+        "</ul>"
+        "<div id=`"all_posts`"><a href=`"./$Script:index_file`">$Script:template_archive_index_page</a></div>"
     } | Out-File "$ContentFile"
 
     New-HTMLPage "$ContentFile" "${Script:tags_index}.tmp" -Index -Title "$Script:global_title &mdash; $Script:template_tags_title"
