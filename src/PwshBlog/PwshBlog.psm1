@@ -517,16 +517,12 @@ function New-BlogPost {
         $Fmt = If ($Ext -eq '.md' -and !$HTML) {'md'}else{'html'}
     } else {
         $TMPFILE = ".entry-$(Get-Random).$Fmt"
-        Write-Output "Title on this line`n" | Out-File "$TMPFILE" -Append
-        If ($Fmt -eq 'html') { Write-Output "<p>The rest of the text file is an <b>html</b> blog post. The process will continue as soon
-as you exit your editor.</p>
+        "Title on this line`n" | Out-File "$TMPFILE" -Append
+        $To,$Tc,$Tf = If ($Fmt -eq 'html') { "<p>","</p>","<b>html</b>" } else {"","","**Markdown**"}
+        "${To}The rest of the text file is an $Tf blog post. The process will continue as soon
+as you exit your editor.$Tc
 
-<p>$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, example</p>" | Out-File "$TMPFILE" -Append
-        } else { Write-Output "The rest of the text file is a **Markdown** blog post. The process will continue
-as soon as you exit your editor.
-
-$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, beware-with-underscores-in-markdown, example" | Out-File "$TMPFILE" -Append
-        }
+$To$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, example$Tc" | Out-File "$TMPFILE" -Append
     }
     #chmod 600 "$TMPFILE"
     $PostStatus="E"
@@ -544,7 +540,7 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
             Write-Verbose "Blog saved as $FileName"
         }
         If (!$Script:preview_url) { $Script:preview_url=$Script:global_url }
-        Write-Output "To preview the entry, open $Script:preview_url/$FileName in your browser"
+        "To preview the entry, open $Script:preview_url/$FileName in your browser"
         $PostStatus = Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
         If ($PostStatus -match '[dD]') {
             New-Item -ItemType Directory -Name drafts -Force
@@ -574,7 +570,7 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
     } else {
         Remove-Item "$TMPFILE"
     }
-    Write-Output "Posted $FileName"
+    "Posted $FileName"
     $relevant_tags = Find-TagsInPost $FileName
     If ($relevant_tags) {
         $relevant_posts=(Find-PostsWithTags $relevant_tags)+$FileName
