@@ -876,23 +876,23 @@ function New-Includes {
     # was create_includes
     Write-Verbose "Crearing header and footer"
     Invoke-Command -ScriptBlock {
-        Write-Output "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
-        Write-Output "<div id=`"description`">$global_description</div>"
+        "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
+        "<div id=`"description`">$global_description</div>"
     } | Out-File ".title.html"
 
     if ($Script:header_file -and (Test-Path -Path $Script:header_file)) {
         Copy-Item "$Script:header_file" .header.html
     } else {
         Invoke-Command -ScriptBlock {
-            Write-Output '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
-            Write-Output '<html xmlns="http://www.w3.org/1999/xhtml"><head>'
-            Write-Output '<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />'
-            Write-Output '<meta name="viewport" content="width=device-width, initial-scale=1.0" />'
+            '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
+            '<html xmlns="http://www.w3.org/1999/xhtml"><head>'
+            '<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />'
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0" />'
             $Script:css_include | ForEach-Object { "<link rel=`"stylesheet`" href=`"$_`" type=`"text/css`" />"}
             if (!$Script:global_feedburner) {
-                Write-Output "<link rel=`"alternate`" type=`"application/rss+xml`" title=`"$Script:template_subscribe_browser_button`" href=`"$Script:blog_feed`" />"
-            } else { 
-                Write-Output "<link rel=`"alternate`" type=`"application/rss+xml`" title=`"$Script:template_subscribe_browser_button`" href=`"$Script:global_feedburner`" />"
+                $feed = $Script:blog_feed
+            }
+            "<link rel=`"alternate`" type=`"application/rss+xml`" title=`"$Script:template_subscribe_browser_button`" href=`"$feed`" />"
             }
         } | Out-File ".header.html"
     }
@@ -903,8 +903,8 @@ function New-Includes {
         Invoke-Command -ScriptBlock {
             $protected_mail=$Script:global_email -replace '@','&#64;'
             $protected_mail=$protected_mail -replace '\.','&#46;'
-            Write-Output "<div id=`"footer`">$Script:global_license <a href=`"$Script:global_author_url`">$Script:global_author</a> &mdash; <a href=`"mailto:$protected_mail`">$protected_mail</a><br/>"
-            Write-Output 'Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>'
+            "<div id=`"footer`">$Script:global_license <a href=`"$Script:global_author_url`">$Script:global_author</a> &mdash; <a href=`"mailto:$protected_mail`">$protected_mail</a><br/>"
+            'Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>'
         } | Out-File -Append ".footer.html"
     }
 }
