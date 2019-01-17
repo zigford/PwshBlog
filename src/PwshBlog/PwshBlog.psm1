@@ -483,13 +483,13 @@ function ConvertTo-BlogPost {
         # Parse possible tags
         } elseif ($_ -match "<p>$Script:template_tags_line_header") {
             $Tags=$_.split(':')[1].replace('</p>','').trim().replace(', ',',').split(',')
-            Write-Output "<p>$Script:template_tags_line_header " | Out-File "$Content" -NoNewLine -Append
+            "<p>$Script:template_tags_line_header " | Out-File "$Content" -NoNewLine -Append
             $Tags | ForEach-Object {
                 $TagContent += "<a href='${Script:prefix_tags}${_}.html'>${_}</a>, "
             }
             $TagContent -replace ', $','</p>' | Out-File "$Content" -Append
         } else {
-            Write-Output "$_" | Out-File "$Content" -Append
+            $_ | Out-File "$Content" -Append
         }
     }
 
