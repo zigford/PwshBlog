@@ -587,7 +587,7 @@ function Update-AllPosts {
     $ContentFile = "$Script:archive_index.$(Get-Random)"
     While (Test-Path $ContentFile) {$ContentFile = "$Script:archive_index.$(Get-Random)"}
     Invoke-Command -ScriptBlock {
-        Write-Output "<h3>$Script:template_archive_title</h3>"
+        "<h3>$Script:template_archive_title</h3>"
         $prev_month=$null
         $Posts = Get-ChildItem -Filter "*.html" | Sort-Object -Property LastWriteTime -Descending
         $i=0
@@ -600,19 +600,18 @@ function Update-AllPosts {
             $month = Get-Date $Post.LastWriteTime -Format $Script:date_allposts_header
             If ($month -ne $prev_month) {
                 If ($prev_month) { Write-Output "</ul>" }
-                Write-Output "<h4 class='allposts_header'>$month</h4>"
-                Write-Output "<ul>"
+                "<h4 class='allposts_header'>$month</h4>"
+                "<ul>"
                 $prev_month=$month
             }
             # Title
             $Title = Get-PostTitle $Post
             $Output = "<li><a href=`"$($Post.Name)`">$Title</a> &mdash;"
             $Date = Get-Date $Post.LastWriteTime -Format "$Script:date_format"
-            Write-Output "${Output}${Date}</li>"
+            "${Output}${Date}</li>"
         }
-        Write-Output ""
-        Write-Output "</ul>"
-        Write-Output "<div id=`"all_posts`"><a href=`"$Script:index_file`">$Script:template_archive_index_page</a></div>"
+        "`n</ul>"
+        "<div id=`"all_posts`"><a href=`"$Script:index_file`">$Script:template_archive_index_page</a></div>"
     } | Out-File $ContentFile
 
     New-HTMLPage "$contentfile" "$Script:archive_index.tmp" -Index -Title "$Scipt:global_title &mdash; $Script:template_archive_title"
