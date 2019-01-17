@@ -776,7 +776,7 @@ function Update-Tags {
             If ($Script:cut_do) {
                 Get-Content $Post | Get-HTMLFileContent "entry" "entry" -Cut | ForEach-Object {
                     If ($_ -match "$Script:cut_line") {
-                        Write-Output "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
+                        "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
                     } else {
                         $_
                     }
