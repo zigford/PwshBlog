@@ -1148,7 +1148,7 @@ function New-BlogConfig {
 
             If ($PSCmdlet.ShouldProcess(".config","Overwrite")) {
                 Set-Content "$Script:global_config" -Value ""
-                $Settings  | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) } |
+                $Settings.GetEnumerator()  | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) } |
                 Out-File -Path "$Script:global_config" -Append
             } else {
                 $Settings
