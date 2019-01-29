@@ -1125,7 +1125,7 @@ function New-BlogConfig {
         If (!(Test-Config $config)) {
             ## version detected. Offer to upgrade
             $i = $null
-            Write-Output "An existing BashBlog config has been detected"
+            "An existing BashBlog config has been detected"
             While ($i -notmatch '[urc]') {
                 $i = Read-Host "[U]pgrade config file, [R]eplace with defaults, [C]ancel? (u/R/c)"
             }
