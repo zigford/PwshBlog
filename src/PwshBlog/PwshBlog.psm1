@@ -1143,12 +1143,13 @@ function New-BlogConfig {
 
                 # Get a list of variables from this module
                 #
-                $Settings = Get-Options | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) }
+                $Settings = Get-Options
             }
 
             If ($PSCmdlet.ShouldProcess(".config","Overwrite")) {
                 Set-Content "$Script:global_config" -Value ""
-                $Settings | Out-File -Path "$Script:global_config" -Append
+                $Settings  | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) } |
+                Out-File -Path "$Script:global_config" -Append
             } else {
                 $Settings
             }
