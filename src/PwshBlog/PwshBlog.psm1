@@ -1135,7 +1135,7 @@ function New-BlogConfig {
                 $i = Read-Host "[U]pgrade config file, [R]eplace with defaults, [C]ancel? (u/R/c)"
             }
             If ($i -eq 'c') { break }
-            If ($u -eq 'u') {
+            If ($i -eq 'u') {
 
                 $Settings = ConvertFrom-BBConfig "$Script:global_config" | ConvertTo-PwshConfig 
 
