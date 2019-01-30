@@ -1283,6 +1283,7 @@ Export-ModuleMember Get-BlogTags
 Export-ModuleMember Remove-BlogPost
 Export-ModuleMember Update-BlogSite
 Export-ModuleMember New-BlogConfig
-Export-ModuleMember Reset-BlogSite 
+Export-ModuleMember Reset-BlogSite
+Export-ModuleMember Import-Config
 
 # vim: set shiftwidth=4 tabstop=4 expandtab:
