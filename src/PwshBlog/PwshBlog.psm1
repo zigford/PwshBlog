@@ -686,7 +686,7 @@ function Update-Index {
                 Get-Content $Post | Get-HTMLFileContent "entry" "entry" -Cut |
                 ForEach-Object {
                     If ($_ -match "$Script:cut_line") {
-                        Write-Output "<p class=`"readmore`"><a href=`"$($Post.Name)`">${Script:template_read_more}</a></p>"
+                        Write-Output "<p class=`"readmore`"><a href=`"$Post`">${Script:template_read_more}</a></p>"
                     } else {
                         $_
                     }
