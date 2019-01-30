@@ -5,7 +5,8 @@ A single Powershell script to create blogs.
 
 I've ported [BashBlog](https://github.com/cfenollosa/bashblog) to Powershell as a holiday fun excersize. I use BashBlog to run my site [zigford.org](http://zigford.org), but spend most of my time in PowerShell for my day job, so thought it might be interesting to learn more about bash an powershell at once.
 
-Currenlty only editing an already posted post is working. Everything was written to maintain compatibility with BashBlog and I would consider this a port rather than a rewrite.
+Currenlty you can create new posts, edit posts, rebuild the site. Not implemented yet
+is updating the RSS feed and twitter cards. Everything was written to maintain compatibility with BashBlog and I would consider this a port rather than a rewrite.
 
 
 Usage
@@ -14,7 +15,10 @@ Usage
 Download the code and copy the PwshBlog directory into your modules path.
 
     Import-Module PwshBlog
+    New-BlogConfig -Whatif
     Edit-BlogPost ./happy-new-year-2019.md
+    New-BlogPost
+    Get-BlogPosts
 
 Features
 --------
@@ -44,6 +48,7 @@ from the defaults.
 
 The format of the `.config` file is just one `$Script:variablename="value"`
 per line, just like in the `Get-GlobalVariables` function.
+You can also create a default one using: `New-BlogConfig`
 
 PwshBlog uses the `$EDITOR` environment value to open the text editor.
 
