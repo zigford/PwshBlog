@@ -919,7 +919,9 @@ function Remove-Includes {
 }
 
 function New-CSS {
-    If ($Script:css_include.Count -gt 0) { return } else {
+    [CmdLetBinding()]
+    Param()
+    If ($Script:css_include) { return } else {
         $Script:css_include = @('main.css', 'blog.css')
     }
 
