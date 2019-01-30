@@ -1215,6 +1215,16 @@ function ConvertTo-PwshConfig {
 }
 
 function Import-Config {
+    <#
+    .SYNOPSIS
+        Load the configuration file
+    .DESCRIPTION
+        Load or reload the default .config file. This is normally loaded the first time a command is run, but if you change the .config file without removing the module, you will need to run this command.
+    .NOTES
+        notes
+    .LINK
+        online help
+    #>
     [CmdLetBinding()]
     Param()
     If (!$Script:global_software_name){
