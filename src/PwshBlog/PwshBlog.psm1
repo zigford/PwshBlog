@@ -398,7 +398,7 @@ Param(
         Write-Output '<div id="divbody"><div class="content">'
 
         $FileUrl=(Get-Item $FileName).Name
-        $FileUrl=$FileUrl.Replace('\\\.rebuilt','') # get the correct url when rebuilding
+        $FileUrl=$FileUrl.Replace('.rebuilt','') # get the correct url when rebuilding
         # one blog entry
         if (!$Index) {
             Write-Output '<!-- entry begin -->' # marks the beginning of the whole post
