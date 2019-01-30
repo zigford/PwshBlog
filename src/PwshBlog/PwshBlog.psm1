@@ -879,7 +879,7 @@ function Update-RSS {
 
 function New-Includes {
     # was create_includes
-    Write-Verbose "Crearing header and footer"
+    Write-Verbose "Creating header and footer"
     Invoke-Command -ScriptBlock {
         Write-Output "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
         Write-Output "<div id=`"description`">$global_description</div>"
