@@ -909,7 +909,7 @@ function New-Includes {
             $protected_mail=$Script:global_email -replace '@','&#64;'
             $protected_mail=$protected_mail -replace '\.','&#46;'
             Write-Output "<div id=`"footer`">$Script:global_license <a href=`"$Script:global_author_url`">$Script:global_author</a> &mdash; <a href=`"mailto:$protected_mail`">$protected_mail</a><br/>"
-            Write-Output 'Generated with <a href="https://github.com/cfenollosa/bashblog">bashblog</a>, a single bash script to easily create blogs like this one</div>'
+            Write-Output 'Generated with <a href="https://github.com/zigford/PwshBlog">PwshBlog</a>, a powershell module to easily create blogs like this one</div>'
         } | Out-File -Append ".footer.html"
     }
 }
