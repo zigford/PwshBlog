@@ -1236,7 +1236,7 @@ function Test-Config {
     If ($config -match '^global') {
         Write-Verbose "Bash style variables detected in config"
         return $False
-    } elseif ($config -match '^$Script:global') {
+    } elseif ($config -match '^\$Script:') {
         Write-Verbose "Powershell style variables detected in config"
         return $True
     } else {
