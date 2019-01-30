@@ -351,7 +351,6 @@ function Get-TwitterCode {
 function Test-BoilerplateFile {
     [CmdLetBinding()]
     Param($Name)
-    Import-Config
     # Check if the file is a 'boilerplate' (i.e. not a post)
     If ($Name.Name) { $Name = $Name.Name }
     If ($Name -in $Script:non_blogpost_files) { return $True }
@@ -1016,7 +1015,6 @@ function Reset-BlogSite {
             Remove-Item $_ -Force
         }
     }
-
 }
 
 #####
