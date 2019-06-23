@@ -1,7 +1,7 @@
 #! /usr/bin/env pwsh
 
 # PwshBlog, a simple blog system written as a PowerShell Module.
-# Inspired by BashBlog originally written by 
+# Inspired by BashBlog originally written by
 # (C) Carlos Fenollosa <carlos.fenollosa@gmail.com>, 2011-2016 and contributors
 # https://github.com/carlesfe/bashblog/contributors
 # Check out README.md for more details
@@ -29,7 +29,7 @@ function Get-GlobalVariables {
     # Your name
     $Script:global_author="John Smith"
     # You can use twitter or facebook or anything for global_author_url
-    $Script:global_author_url="http://twitter.com/example" 
+    $Script:global_author_url="http://twitter.com/example"
     # Your email
     $Script:global_email="john@smith.com"
 
@@ -43,7 +43,7 @@ function Get-GlobalVariables {
     $Script:global_analytics=""
     $Script:global_analytics_file=""
 
-    # Leave this empty (i.e. "") if you don't want to use feedburner, 
+    # Leave this empty (i.e. "") if you don't want to use feedburner,
     # or change it to your own URL
     $Script:global_feedburner=""
 
@@ -76,7 +76,7 @@ function Get-GlobalVariables {
     $Script:number_of_feed_articles="10"
     # "cut" blog entry when putting it to index page. Leave blank for full articles in front page
     # i.e. include only up to first '<hr>', or '----' in markdown
-    $Script:cut_do="cut"
+    $Script:cut_do=$True
     # When cutting, cut also tags? If "no", tags will appear in index page for cut articles
     $Script:cut_tags="yes"
     # Regexp matching the HTML line where to do the cut
@@ -132,7 +132,7 @@ function Get-GlobalVariables {
     # "Tweet" (used as twitter text button for posting to twitter)
     $Script:template_twitter_button="Tweet"
     $Script:template_twitter_comment="&lt;Type your comment here but please leave the URL so that other people can follow the comments&gt;"
-    
+
     # The locale to use for the dates displayed on screen
     $Script:date_format="MMMM dd, yyyy"
     $Script:date_locale=(Get-Culture).Name
@@ -141,7 +141,7 @@ function Get-GlobalVariables {
     $Script:date_format_full="dddd, dd MMM yyyy HH:mm:ss zzzz"
     $Script:date_format_timestamp="yyyyMMddHHmm.ss"
     $Script:date_allposts_header="MMMM yyyy"
-    
+
     #
     # Perform the post title -> filename conversion
     # Experts only. You may need to tune the locales too
@@ -159,7 +159,7 @@ function Get-GlobalVariables {
 function Test-GlobalVariables {
     if ($Script:header_file -eq '.header.html') {
         Write-Error "Please check your configuration. '.header.html' is not a valid value for the setting 'header_file'"
-    } 
+    }
     if ($Script:footer_file -eq '.footer.html') {
         Write-Error "Please check your configuration. '.footer.html' is not a valid value for the setting 'footer_file'"
     }
@@ -289,7 +289,7 @@ function Edit-BlogPost {
     $Orig_FileName=$FileName
     # Original post timestamp
     $tmpFileName="$($File.BaseName).html"
-    $Edit_Timestamp=(Get-Date (Get-Item $tmpFileName).LastWriteTime -Format $Script:date_format_full) -replace '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)','$1, $2$3$4'
+    $Edit_Timestamp=ConvertTo-BBFullDate (Get-Item $tmpFileName).LastWriteTime
     $Touch_Timestamp=(Get-Date (Get-Item $tmpFileName).LastWriteTime)
     [array]$tags_before=Find-TagsInPost $tmpFileName
     if ($Full) {
@@ -505,7 +505,8 @@ function New-BlogPost {
     [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
     Param(
         [switch]$HTML,
-        [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName
+        [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName,
+        [switch]$Force
     )
     
     Initialize-Blog
@@ -543,8 +544,12 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
             Write-Verbose "Blog saved as $FileName"
         }
         If (!$Script:preview_url) { $Script:preview_url=$Script:global_url }
-        Write-Output "To preview the entry, open $Script:preview_url/$FileName in your browser"
-        $PostStatus = Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
+        If ($Force) {
+            $PostStatus = 'p'
+        } else {
+            Write-Output "To preview the entry, open $Script:preview_url/$FileName in your browser"
+            $PostStatus = Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
+        }
         If ($PostStatus -match '[dD]') {
             New-Item -ItemType Directory -Name drafts -Force
 
@@ -857,23 +862,85 @@ function Get-BlogTags {
 
 function Get-BlogPosts {
     # was list_posts
+    Import-Config
     $PostFiles = Get-ChildItem -Filter "*.html" |
     Sort-Object -Property LastWriteTime -Descending
 
     If (!$PostFiles) { throw "No posts yet. Use New-BlogPost to create one" }
     
+    $defProps = @('Title','Timestamp')
     ForEach ($PostFile in $PostFiles) {
         If (Test-BoilerplateFile $PostFile) { continue }
-        [PSCustomObject]@{
+        $Result = [PSCustomObject]@{
             'Title' = Get-PostTitle $PostFile
-            'Timestamp' = (Get-Date (Get-Item $PostFile).LastWriteTime -Format $Script:date_format) 
+            'Timestamp' = (
+                Get-Date (Get-Item $PostFile).LastWriteTime `
+                    -Format $Script:date_format) 
+            'HtmlFile' = $PostFile.Name
+            'MdFile' = If (Test-Path -Path "$($PostFile.BaseName).md") {
+                "$($PostFile.BaseName).md"} else { $False }
         }
+        $defPropSet = New-Object System.Management.Automation.PSPropertySet(
+            'DefaultDisplayPropertySet',
+            [string[]]$defProps)
+        $StdMems = [System.Management.Automation.PSMemberInfo[]]@($defPropSet)
+        $Result | Add-Member MemberSet PSStandardMembers $StdMems -PassThru
     }
 
 }
 
 function Update-RSS {
+    [CmdLetBinding(SupportsShouldProcess=$True,ConfirmImpact='Medium')]
+    Param()
     # was make_rss
+    Write-Verbose "Making RSS"
+    $RSSFile = "${Script:blog_feed}.$(Get-Random)"
+    While (Test-Path $RSSFile) { $RSSFile = ${Script:blog_feed}.$(Get-Random) }
+
+    Invoke-Command -ScriptBlock {
+        $PubDate = ConvertTo-BBFullDate (Get-Date)
+        '<?xml version="1.0" encoding="UTF-8" ?>'
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        "<channel><title>$Script:global_title</title><link>$Script:global_url/$Script:index_file</link>"
+        "<description>$(Remove-Html $Script:global_description)</description><language>en</language>"
+        "<lastBuildDate>$pubdate</lastBuildDate>"
+        "<pubDate>$pubdate</pubDate>"
+        "<atom:link href=`"$Script:global_url/$Script:blog_feed`" rel=`"self`" type=`"application/rss+xml`" />"
+
+        $Posts = Get-BlogPosts
+        ForEach ($Post in $Posts) {
+            $PostFile = Get-Item $Post.HtmlFile
+            $PostPubDate = ConvertTo-BBFullDate -Date $PostFile.LastWriteTime
+            $PostNum = 
+                If ($Posts -is [array]) {
+                    $Posts.IndexOf($Post)
+                } else { 1 }
+            $ProgParam = @{
+                PercentComplete = $PostNum/$Posts.Count*100
+                Activity = "Rebuilding feed"
+                Status = "Adding $($Post.Title)"
+            }
+            Write-Progress @ProgParam
+            If ($PostNum -ge $Script:number_of_feed_articles) { break }
+            '<item><title>'
+            $Post.Title
+            '</title><description><![CDATA['
+            Get-Content $PostFile |
+            Get-HTMLFileContent 'text' 'entry' -Cut:$Script:cut_do
+            "]]></description><link>$Script:global_url/$PostFile</link>"
+            "<guid>$Script:global_url/$PostFile</guid>"
+            "<dc:creator>$(Get-PostAuthor $PostFile)</dc:creator>"
+            "<pubDate>$PostPubDate</pubDate></item>"
+        }
+        '</channel></rss>'
+    } | Out-File $RSSFile
+    Write-Progress -Activity "Rebuilding feed" -Complete
+    If ($PsCmdlet.ShouldProcess($RSSFile, "Replace RSS file with")) {
+        Move-Item $RSSFile $Script:blog_feed -Force
+    } else {
+        Remove-Item $RSSFile
+    }
+
 }
 
 function New-Includes {
@@ -991,7 +1058,7 @@ function Update-BlogPosts {
             Set-FileTimestamp -FileName $HtmlFile -Timestamp $Timestamp | Out-Null
         }
         # Read timestamp from file in correct format for 'create_html_page'
-        $Timestamp = (Get-Date (Get-Item $HtmlFile).LastWriteTime -Format $Script:date_format_full) -replace '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)','$1, $2$3$4'
+        $Timestamp = ConvertTo-BBFullDate $HtmlFile.LastWriteTime
 
         New-HTMLPage $ContentFile "$HtmlFile.rebuilt" -Title $Title -Timestamp $Timestamp -Author (Get-PostAuthor $HtmlFile)
 
@@ -1059,6 +1126,42 @@ function Set-FileTimestamp {
     }
 }
 
+function ConvertTo-BBFullDate {
+    Param([DateTime]$Date)
+    (Get-Date $Date -Format $Script:date_format_full) -replace
+    '^([A-Z][a-z]{2})\w+,\s(\d\d\s\w{3}\s\d{4}\s\d\d:\d\d:\d\d)\s(.\d\d):(\d\d)',
+    '$1, $2 $3$4'
+}
+
+function Remove-Html {
+    [CmdLetBinding()]
+    Param(
+        [Parameter(ValueFromPipeline=$True)]$Content,
+        [switch]$LinksOnly
+
+    )
+    Begin {
+        "Begin"
+        Try {
+            If (Test-Path $Content) {
+                $Content = Get-Content $Content
+            }
+        } catch {
+        }
+    }
+    Process {
+        Write-Verbose "Removing $($Content.count) file(s)"
+        $Content | ForEach-Object {
+            While ($Content -match '<.*?>') {
+                # Remove Hrefs
+                $Content = $Content -replace '<a .*?/a>',''
+                # Remove Tags
+                $Content = $Content -replace '<.*?>',''
+            }
+        }
+        If ($Content.Trim()) {$Content.Trim()}
+    }
+}
 
 function Test-Editor {
     If (!$Env:EDITOR) {throw "Please set your `$ENV:EDITOR environment variable. For example, to use nano, add the line '`$ENV:EDITOR=nano' to your $profile file"
@@ -1140,23 +1243,25 @@ function New-BlogConfig {
                 $Settings = ConvertFrom-BBConfig "$Script:global_config" | ConvertTo-PwshConfig 
 
             } else {
-
-                # Get a list of variables from this module
-                #
                 $Settings = Get-Options
             }
-
-            If ($PSCmdlet.ShouldProcess(".config","Overwrite")) {
-                Set-Content "$Script:global_config" -Value ""
-                $Settings.GetEnumerator()  | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) } |
-                Out-File -Path "$Script:global_config" -Append
-            } else {
-                $Settings
-            }
         }
+    } else { $Settings = Get-Options }
+    If ($Settings) {
+        # Get a list of variables from this module
+        #
+        Set-Content "$Script:global_config" -Value ""
+        $Settings.GetEnumerator()  | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) } |
+        Out-File -Path "$Script:global_config" -Append
 
+        If ($PSCmdlet.ShouldProcess(".config","Overwrite")) {
+            Set-Content "$Script:global_config" -Value ""
+            $Settings.GetEnumerator()  | %{ ('$Script:{0}={1}' -f $_.Name,$_.Value) } |
+            Out-File -Path "$Script:global_config" -Append
+        } else {
+            $Settings
+        }
     }
-
 }
 
 function Get-Options {
