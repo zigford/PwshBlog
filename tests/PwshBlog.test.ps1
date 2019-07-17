@@ -41,17 +41,13 @@ Describe "New-BlogPost" {
         # New-BlogConfig
         New-BlogPost -Force -Confirm:$False -WarningAction 'SilentlyContinue'|
         Out-Null
-        $Result = If (
-            Compare-Object `
+        Compare-Object `
             (Get-Content title-on-this-line.html) `
             (Get-Content $PSScriptRoot\title-on-this-line.html) |
-            Where-Object {$_.InputObject -notmatch 'bashblog_timestamp'}
-           ) {
-            "Post content does not match example"
-        } else {
-            "Post content matches examples"
-        }
-        $Result | Should be "Post content matches examples"
+            Where-Object {
+                $_.InputObject -notmatch 'bashblog_timestamp' -and
+                $_.InputObject -notmatch 'subtitle'
+            } | Should be $null
     }
     $ENV:EDITOR = $EDITOR
     Remove-TestEnvironment
