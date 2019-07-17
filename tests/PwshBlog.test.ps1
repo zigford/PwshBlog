@@ -52,5 +52,5 @@ Describe "New-BlogPost" {
     $ENV:EDITOR = $EDITOR
     Remove-TestEnvironment
 }
-Reset-BlogSite -Confirm:$False
+
 Remove-Module PwshBlog
