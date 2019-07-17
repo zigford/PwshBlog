@@ -13,18 +13,28 @@ function New-TestPath {
     return (New-Item -ItemType Directory -Path $TEMP -Name (Get-Random))
 }
 
+function New-TestEnvironment {
+    $Script:TestRoot = New-TestPath
+    Push-Location
+    Set-Location $Script:TestRoot
+}
+
+function Remove-TestEnvironment {
+    Pop-Location
+    Remove-Item $Script:TestRoot -Force -Recurse
+}
+
 Describe "New-BlogConfig" {
+    New-TestEnvironment
     It "makes a new config file" {
         New-BlogConfig
         Test-Path .config | should be $True
     }
-    Remove-Item .config -Force
+    Remove-TestEnvironment
 }
 
 Describe "New-BlogPost" {
-    $TestRoot = New-TestPath
-    Push-Location
-    Set-Location $TestRoot
+    New-TestEnvironment
     $EDITOR=$ENV:EDITOR
     $ENV:EDITOR = 'true '
     It "Creates a new html post" {
@@ -44,8 +54,7 @@ Describe "New-BlogPost" {
         $Result | Should be "Post content matches examples"
     }
     $ENV:EDITOR = $EDITOR
-    Pop-Location
-    Remove-Item $TestRoot -Force -Recurse
+    Remove-TestEnvironment
 }
 Reset-BlogSite -Confirm:$False
 Remove-Module PwshBlog
