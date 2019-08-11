@@ -508,76 +508,84 @@ function New-BlogPost {
     Initialize-Blog
     $Fmt = If ( $HTML ) { 'html' } else { 'md' }
     If ($FileName) {
-        $TMPFILE = Get-Item $FileName
-        $Ext = $TMPFILE.Extension
+        if ($FileName -isnot [System.IO.FileInfo]) {
+            $FileName = Get-Item $FileName
+        }
+        $Ext = $FileName.Extension
         $Fmt = If ($Ext -eq '.md' -and !$HTML) {'md'}else{'html'}
     } else {
-        $TMPFILE = ".entry-$(Get-Random).$Fmt"
-        Write-Output "Title on this line`n" | Out-File "$TMPFILE" -Append
-        If ($Fmt -eq 'html') { Write-Output "<p>The rest of the text file is an <b>html</b> blog post. The process will continue as soon
+        $FileName = New-Item -ItemType File -Name ".entry-$(Get-Random).$Fmt"
+        "Title on this line`n" | Out-File $FileName -Append
+        If ($Fmt -eq 'html') { "<p>The rest of the text file is an <b>html</b> blog post. The process will continue as soon
 as you exit your editor.</p>
 
-<p>$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, example</p>" | Out-File "$TMPFILE" -Append
-        } else { Write-Output "The rest of the text file is a **Markdown** blog post. The process will continue
+<p>$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, example</p>" |
+        Out-File $FileName -Append
+        } else { "The rest of the text file is a **Markdown** blog post. The process will continue
 as soon as you exit your editor.
 
-$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, beware-with-underscores-in-markdown, example" | Out-File "$TMPFILE" -Append
+$Script:template_tags_line_header keep-this-tag-format, tags-are-optional, beware-with-underscores-in-markdown, example" |
+            Out-File $FileName -Append
         }
     }
     #chmod 600 "$TMPFILE"
     $PostStatus="E"
+    $NewFileName = $null
     While ($PostStatus -notmatch '[pP]') {
-        If ($FileName) {Remove-Item $FileName}
+        If ($NewFileName) {Remove-Item $NewFileName}
         Test-Editor
-        Start-Process $env:EDITOR "$TMPFILE" -Wait
+        Start-Process $env:EDITOR $FileName -Wait
         If ($Fmt -eq 'md') {
-            $HtmlFromMd = New-HTMLFromMarkdown "$TMPFILE"
-            $FileName = ConvertTo-BlogPost -SourceFile $HtmlFromMd
+            $HtmlFromMd = New-HTMLFromMarkdown $FileName
+            $NewFileName = ConvertTo-BlogPost -SourceFile $HtmlFromMd
             Remove-Item $HtmlFromMd -Force
             Write-Verbose "Blog saved as $FileName"
         } else {
-            $FileName = ConvertTo-BlogPost -SourceFile "$TMPFILE" # this command sets $filename as the html processed file
-            Write-Verbose "Blog saved as $FileName"
+            $NewFileName = ConvertTo-BlogPost -SourceFile $FileName # this command sets $filename as the html processed file
+            Write-Verbose "Blog saved as $NewFileName"
         }
         If (!$Script:preview_url) { $Script:preview_url=$Script:global_url }
         If ($Force) {
             $PostStatus = 'p'
         } else {
-            Write-Output "To preview the entry, open $Script:preview_url/$FileName in your browser"
-            $PostStatus = Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
+            "To preview the entry, open $Script:preview_url/$NewFileName in your browser"
+            $PostStatus = 
+            Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
         }
         If ($PostStatus -match '[dD]') {
             New-Item -ItemType Directory -Name drafts -Force
 
-            $Title = (Get-Content "$TMPFILE" -Head 1)
-            If ($Script:convert_filename) { $Title=Invoke-Expression "Write-Output '$Title' | $Script:convert_filename" }
+            $Title = (Get-Content $FileName -Head 1)
+            If ($Script:convert_filename) { 
+                $Title=Invoke-Expression "'$Title' | $Script:convert_filename"
+            }
             If (!$Title) { $Title=Get-Random }
             $Draft = "drafts/$Title.$Fmt"
-            Move-Item "$TMPFILE" $Draft
-            Remove-Item $FileName
+            Move-Item $FileName $Draft
+            Remove-Item $NewFileName
             Remove-Includes
-            Write-Output "Saved your draft as '$Draft'"
+            "Saved your draft as '$Draft'"
             return 
         }
     }
     If ($Fmt -eq 'md' -and $Script:save_markdown) {
-        $NewMDFileName = $FileName -replace '(.*?)\..*','$1.md'
+        $NewMDFileName = $NewFileName -replace '(.*?)\..*','$1.md'
         Write-Verbose "Keeping MD file as: $NewMDFileName"
         If (Test-Path $NewMDFileName) {
             Write-Warning "MD $NewMDFileName already exists. Replace?"
             If ($PSCmdlet.ShouldProcess($NewMDFileName, "Overwrite")) {
-                Move-Item "$TMPFILE" ($FileName -replace '(.*?)\..*','$1.md') -Force
+                Move-Item $FileName ($NewFileName -replace '(.*?)\..*','$1.md') -Force
             }
         } else {
-            Move-Item "$TMPFILE" ($FileName -replace '(.*?)\..*','$1.md')
+            Move-Item $FileName ($NewFileName -replace '(.*?)\..*','$1.md')
         }
     } else {
-        Remove-Item "$TMPFILE"
+        Remove-Item $FileName
     }
-    Write-Output "Posted $FileName"
-    $relevant_tags = Find-TagsInPost $FileName
+    "Posted $NewFileName"
+    $relevant_tags = Find-TagsInPost $NewFileName
     If ($relevant_tags) {
-        $relevant_posts=(Find-PostsWithTags $relevant_tags)+$FileName
+        $relevant_posts=(Find-PostsWithTags $relevant_tags)+$NewFileName
         Update-Tags -Posts $relevant_posts -Tags $relevant_tags
     }
     Exit-PwshBlog
