@@ -532,7 +532,7 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
     $PostStatus="E"
     While ($PostStatus -notmatch '[pP]') {
         If ($FileName) {Remove-Item $FileName}
-
+        Test-Editor
         Start-Process $env:EDITOR "$TMPFILE" -Wait
         If ($Fmt -eq 'md') {
             $HtmlFromMd = New-HTMLFromMarkdown "$TMPFILE"
@@ -1164,7 +1164,8 @@ function Remove-Html {
 }
 
 function Test-Editor {
-    If (!$Env:EDITOR) {throw "Please set your `$ENV:EDITOR environment variable. For example, to use nano, add the line '`$ENV:EDITOR=nano' to your $profile file"
+    If (!$Env:EDITOR -or !(Test-Path $Env:EDITOR)) {
+        throw "Please set your `$ENV:EDITOR environment variable. For example, to use nano, add the line '`$ENV:EDITOR=nano' to your $profile file"
     }
 }
 
