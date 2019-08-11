@@ -410,15 +410,11 @@ Param(
             Write-Output '</a></h3>'
             if (!$Timestamp) {
                 Write-Output "<!-- $date_inpost`: #$(Get-Date -Format "$Script:date_format_timestamp")# -->"
-            } else {
-                Write-Output "<!-- $date_inpost`: #$(Get-Date $Timestamp -Format "$Script:date_format_timestamp")# -->"
-            }
-            if (!$Timestamp) {
                 $DivOutput = "<div class=`"subtitle`">$(Get-Date -Format "$Script:date_format")"
             } else {
+                Write-Output "<!-- $date_inpost`: #$(Get-Date $Timestamp -Format "$Script:date_format_timestamp")# -->"
                 $DivOutput = "<div class=`"subtitle`">$(Get-Date $Timestamp -Format "$Script:date_format")"
             }
-
             If ($Author) { $DivOutput += " &mdash; `n$Author`n" }
             Write-Output "$DivOutput</div>"
             Write-Output '<!-- text begin -->' # this marks the text body, after the title, date...
@@ -1033,6 +1029,33 @@ function New-CSS {
     }
 }
 
+function Get-BlogPostTimestamp {
+    [CmdLetBinding()]
+    Param([Parameter(Mandatory=$True)]$HTMLPage)
+
+    If ($HTMLPage -is [array]) {
+        $HTMLContent = $HTMLPage
+    } elseif (($HTMLPage -is [System.IO.FileInfo]) -or (Test-Path $HTMLPage)) {
+        $HTMLContent = Get-Content $HTMLPage
+    } else {
+        Write-Verbose "Do not know what HTMLPage is for timestamp"
+    }
+
+    $Timestamp = $HTMLContent | Select-String "<!-- ${Script:date_inpost}: #(.+)# -->" |
+    ForEach-Object {
+        Write-Verbose "Found timestamp $($_.Matches.Groups[1].Value)"
+        [DateTime]::ParseExact(
+                $_.Matches.Groups[1].Value,
+                $Script:date_format_timestamp,
+                $null
+        )
+    }
+    If ($Timestamp) {
+        return $Timestamp
+    }
+    return (Get-Date)
+}
+
 function Update-BlogPosts {
     [CmdletBinding()]
     Param()
@@ -1050,22 +1073,13 @@ function Update-BlogPosts {
         $Title = Get-PostTitle $HtmlFile.Name
         Get-Content $HtmlFile | Get-HTMLFileContent 'text' 'text' | Out-File $ContentFile -Append
         # Read timestamp from post, if present, and sync file timestamp
-        $Timestamp=Select-String "<!-- ${Script:date_inpost}: #(.+)# -->" $HtmlFile | ForEach-Object {
-            Write-Verbose "Trying to set datetime with $($_.Matches.Groups[1].Value)"
-            [DateTime]::ParseExact($_.Matches.Groups[1].Value,$Script:date_format_timestamp,$null)}
-        If ($Timestamp) { 
-            Write-Verbose "Found timestamp: $Timestamp on $($HtmlFile.Name)"
-            Set-FileTimestamp -FileName $HtmlFile -Timestamp $Timestamp | Out-Null
-        }
-        # Read timestamp from file in correct format for 'create_html_page'
-        $Timestamp = ConvertTo-BBFullDate $HtmlFile.LastWriteTime
+        $Timestamp = Get-BlogPostTimestamp $HtmlFile
 
         New-HTMLPage $ContentFile "$HtmlFile.rebuilt" -Title $Title -Timestamp $Timestamp -Author (Get-PostAuthor $HtmlFile)
 
-        # keep the original timestamp!
-        $timestamp = (Get-Item $HtmlFile).LastWriteTime
         Move-Item "$HtmlFile.rebuilt" "$HtmlFile" -Force
-        Set-FileTimestamp -FileName $HtmlFile -Timestamp $Timestamp | Out-null
+        Write-Verbose "$Timestamp is $($Timestamp.GetType())"
+        $Timestamp | Set-FileTimestamp -FileName $HtmlFile -ErrorAction Stop | Out-null
         Remove-Item $ContentFile -Force
     }
     Write-Progress -Activity "Rebuilding all entries" -Status "Finished" -Completed
@@ -1109,17 +1123,22 @@ function Set-FileTimestamp {
     Param(
         [Parameter(Mandatory=$True)]
         [ValidateScript({((Test-Path $_) -and !(Get-Item $_).PSIsContainer) -or !(Test-Path $_)})]$FileName,
-        [DateTime]$Timestamp
+        [Parameter(ValueFromPipeline=$True)][DateTime]$Timestamp
     )
 
-    If (!$Timestamp) { $Timestamp = Get-Date }
+    If (!$Timestamp) { 
+        Write-Verbose "Timestamp not supplied. Using current"
+        $Timestamp = Get-Date 
+    }
     If (Test-Path -Path $FileName) { 
         If ($PSCmdlet.ShouldProcess("$Filename","Update timestamp")) {
+            Write-Verbose "Updating $FileName timestamp to $Timestamp"
             (Get-Item $FileName).LastWriteTime = $Timestamp
         }
         Get-Item $FileName
     } else {
         If ($PSCmdlet.ShouldProcess("$FileName","Create new file with timestamp")) {
+            Write-Verbose "Creating new file $FileName and setting timestamp to $Timestamp"
             (New-Item -ItemType File -Name $FileName -Confirm:$False).LastWriteTime = $Timestamp
             Get-Item $FileName
         }
