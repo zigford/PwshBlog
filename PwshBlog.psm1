@@ -172,10 +172,10 @@ function New-HTMLFromMarkdown {
         [Parameter(Mandatory=$True)]
         [System.IO.FileInfo]$MarkdownFile
     )
-    $Out = "$(($MarkdownFile).BaseName).html"
-    While (Test-Path $Out) { $Out = "$(($MarkdownFile).BaseName).$(Get-Random).html" }
+    $Out = $MarkdownFile.FullName.Replace('.md','.html')
+    While (Test-Path $Out) { $Out = $Out.Replace('.html',".$(Get-Random).html") }
     $Content = ConvertFrom-Markdown -Path $MarkdownFile 
-    New-Item -ItemType File -Name "$Out" `
+    New-Item -ItemType File -Path $Out `
         -Value $Content.Html
         Write-Verbose "md converted to html: $Out"
 }
