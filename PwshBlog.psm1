@@ -1207,7 +1207,7 @@ function Update-BlogSite {
 }
 
 function Remove-BlogPost {
-    [CmdLetBinding(SupportShouldProcess, ConfirmImpact='High')]
+    [CmdLetBinding(SupportsShouldProcess, ConfirmImpact='High')]
     Param([System.IO.FileInfo]$File)
     Initialize-Blog
     If ($PSCmdlet.ShouldProcess($File.Name, "Remove Blog post")) {
