@@ -904,21 +904,22 @@ function Update-RSS {
     Invoke-Command -ScriptBlock {
         $PubDate = ConvertTo-BBFullDate (Get-Date)
         '<?xml version="1.0" encoding="UTF-8" ?>'
-        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">'
-        "<channel><title>$Script:global_title</title><link>$Script:global_url/$Script:index_file</link>"
-        "<description>$(Remove-Html $Script:global_description)</description><language>en</language>"
+        '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" ' +
+        'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        "<channel><title>$Script:global_title</title>" +
+        "<link>$Script:global_url/$Script:index_file</link>"
+        "<description>$(Remove-Html $Script:global_description)</description>"+
+        "<language>en</language>"
         "<lastBuildDate>$pubdate</lastBuildDate>"
         "<pubDate>$pubdate</pubDate>"
-        "<atom:link href=`"$Script:global_url/$Script:blog_feed`" rel=`"self`" type=`"application/rss+xml`" />"
+        "<atom:link href=`"$Script:global_url/$Script:blog_feed`" " +
+        "rel=`"self`" type=`"application/rss+xml`" />"
 
-        $Posts = Get-BlogPosts
+        [Array]$Posts = Get-BlogPosts
         ForEach ($Post in $Posts) {
             $PostFile = Get-Item $Post.HtmlFile
             $PostPubDate = ConvertTo-BBFullDate -Date $PostFile.LastWriteTime
-            $PostNum = 
-                If ($Posts -is [array]) {
-                    $Posts.IndexOf($Post)
-                } else { 1 }
+            $PostNum = $Posts.IndexOf($Post)
             $ProgParam = @{
                 PercentComplete = $PostNum/$Posts.Count*100
                 Activity = "Rebuilding feed"
@@ -931,8 +932,8 @@ function Update-RSS {
             '</title><description><![CDATA['
             Get-Content $PostFile |
             Get-HTMLFileContent 'text' 'entry' -Cut:$Script:cut_do
-            "]]></description><link>$Script:global_url/$PostFile</link>"
-            "<guid>$Script:global_url/$PostFile</guid>"
+            "]]></description><link>$Script:global_url/$($Post.HtmlFile)</link>"
+            "<guid>$Script:global_url/$($Post.HtmlFile)</guid>"
             "<dc:creator>$(Get-PostAuthor $PostFile)</dc:creator>"
             "<pubDate>$PostPubDate</pubDate></item>"
         }
