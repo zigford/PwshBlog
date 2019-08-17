@@ -948,40 +948,66 @@ function Update-RSS {
 
 }
 
+function Get-DefaultFooter {
+
+@"
+$($protected_mail=$Script:global_email -replace '@','&#64;')
+$($protected_mail=$protected_mail -replace '\.','&#46;')
+<div id=`"footer`">$Script:global_license <a href=`"$Script:global_author_url`">$Script:global_author</a> &mdash; <a href=`"mailto:$protected_mail`">$protected_mail</a><br/>
+Generated with <a href="https://github.com/zigford/PwshBlog">PwshBlog</a>, a powershell module to easily create blogs like this one</div>'
+"@
+
+}
+
+function Get-DefaultHeader {
+
+    $FeedBurner =
+        if (!$Script:global_feedburner) {
+            $Script:blog_feed
+        } else {
+            $Script:global_feedburner
+        }
+    $Script:css_include | ForEach-Object {
+        $CSSIncludes += "`n<link rel=`"stylesheet`" href=`"$_`" type=`"text/css`" />"
+    }
+
+@"
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />$CSSIncludes
+<link rel=`"alternate`" type=`"application/rss+xml`" title=`"$Script:template_subscribe_browser_button`" href=`"$FeedBurner`" />
+"@
+
+}
+
+function Get-DefaultTitle {
+
+@"
+<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>
+<div id=`"description`">$global_description</div>
+"@
+
+}
+
 function New-Includes {
     # was create_includes
     Write-Verbose "Creating header and footer"
-    Invoke-Command -ScriptBlock {
-        Write-Output "<h1 class=`"nomargin`"><a class=`"ablack`" href=`"$Script:global_url/$Script:index_file`">$Script:global_title</a></h1>" 
-        Write-Output "<div id=`"description`">$global_description</div>"
-    } | Out-File ".title.html"
+    New-Item -ItemType File -Name '.title.html' -Value (Get-DefaultTitle) |
+    Set-ItemProperty -Name Attributes -Value ([IO.FileAttributes]::Hidden)
 
     if ($Script:header_file -and (Test-Path -Path $Script:header_file)) {
         Copy-Item "$Script:header_file" .header.html
     } else {
-        Invoke-Command -ScriptBlock {
-            Write-Output '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">'
-            Write-Output '<html xmlns="http://www.w3.org/1999/xhtml"><head>'
-            Write-Output '<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />'
-            Write-Output '<meta name="viewport" content="width=device-width, initial-scale=1.0" />'
-            $Script:css_include | ForEach-Object { "<link rel=`"stylesheet`" href=`"$_`" type=`"text/css`" />"}
-            if (!$Script:global_feedburner) {
-                Write-Output "<link rel=`"alternate`" type=`"application/rss+xml`" title=`"$Script:template_subscribe_browser_button`" href=`"$Script:blog_feed`" />"
-            } else { 
-                Write-Output "<link rel=`"alternate`" type=`"application/rss+xml`" title=`"$Script:template_subscribe_browser_button`" href=`"$Script:global_feedburner`" />"
-            }
-        } | Out-File ".header.html"
+        New-Item -ItemType File -Name '.header.html' -Value (Get-DefaultHeader) |
+        Set-ItemProperty -Name Attributes -Value ([IO.FileAttributes]::Hidden)
     }
 
     if ($Script:footer_file -and (Test-Path -Path $Script:footer_file)) {
         Copy-Item "$Script:footer_file" .footer.html
     } else {
-        Invoke-Command -ScriptBlock {
-            $protected_mail=$Script:global_email -replace '@','&#64;'
-            $protected_mail=$protected_mail -replace '\.','&#46;'
-            Write-Output "<div id=`"footer`">$Script:global_license <a href=`"$Script:global_author_url`">$Script:global_author</a> &mdash; <a href=`"mailto:$protected_mail`">$protected_mail</a><br/>"
-            Write-Output 'Generated with <a href="https://github.com/zigford/PwshBlog">PwshBlog</a>, a powershell module to easily create blogs like this one</div>'
-        } | Out-File -Append ".footer.html"
+        New-Item -ItemType File -Name '.footer.html' -Value (Get-DefaultFooter) |
+        Set-ItemProperty -Name Attributes -Value ([IO.FileAttributes]::Hidden)
     }
 }
 
