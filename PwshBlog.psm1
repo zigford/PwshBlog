@@ -174,7 +174,7 @@ function New-HTMLFromMarkdown {
     )
     $Out = $MarkdownFile.FullName.Replace('.md','.html')
     While (Test-Path $Out) { $Out = $Out.Replace('.html',".$(Get-Random).html") }
-    $Content = ConvertFrom-Markdown -Path $MarkdownFile 
+    $Content = ConvertFrom-Markdown -Path $MarkdownFile
     New-Item -ItemType File -Path $Out `
         -Value $Content.Html
         Write-Verbose "md converted to html: $Out"
@@ -359,7 +359,7 @@ function Test-BoilerplateFile {
         {$_ -in $index_file,$archive_index,$tags_index,$footer_file,$header_file,$global_analytics_file} { return $True }
         {$_ -match $prefix_tags} { return $True }
         Default {
-            If ($Name -in $html_exclude) { return $True } 
+            If ($Name -in $html_exclude) { return $True }
             return $False
         }
     }
@@ -436,8 +436,7 @@ Param(
         # page footer
         Get-Content .footer.html
         # close divs
-        Write-Output '</div></div>' # divbody and divbodyholder 
-        Get-JSContent -Code DisqusFooter
+        Write-Output '</div></div>' # divbody and divbodyholder Get-JSContent -Code DisqusFooter
         If ($Script:body_end_file) { Get-Content "$body_end_file" }
         Write-Output '</body></html>'
     } | Out-File "$FileName"
@@ -504,7 +503,7 @@ function New-BlogPost {
         [Parameter(Position=0)][ValidateScript({Test-Path $_})]$FileName,
         [switch]$Force
     )
-    
+
     Initialize-Blog
     $Fmt = If ( $HTML ) { 'html' } else { 'md' }
     If ($FileName) {
@@ -549,14 +548,14 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
             $PostStatus = 'p'
         } else {
             "To preview the entry, open $Script:preview_url/$NewFileName in your browser"
-            $PostStatus = 
+            $PostStatus =
             Read-Host -Prompt "[P]ost this entry, [E]dit again, [D]raft for later? (p/E/d)"
         }
         If ($PostStatus -match '[dD]') {
             New-Item -ItemType Directory -Name drafts -Force
 
             $Title = (Get-Content $FileName -Head 1)
-            If ($Script:convert_filename) { 
+            If ($Script:convert_filename) {
                 $Title=Invoke-Expression "'$Title' | $Script:convert_filename"
             }
             If (!$Title) { $Title=Get-Random }
@@ -565,7 +564,7 @@ $Script:template_tags_line_header keep-this-tag-format, tags-are-optional, bewar
             Remove-Item $NewFileName
             Remove-Includes
             "Saved your draft as '$Draft'"
-            return 
+            return
         }
     }
     If ($Fmt -eq 'md' -and $Script:save_markdown) {
@@ -1295,7 +1294,7 @@ function New-BlogConfig {
             If ($i -eq 'c') { break }
             If ($i -eq 'u') {
 
-                $Settings = ConvertFrom-BBConfig "$Script:global_config" | ConvertTo-PwshConfig 
+                $Settings = ConvertFrom-BBConfig "$Script:global_config" | ConvertTo-PwshConfig
 
             } else {
                 $Settings = Get-Options
@@ -1352,20 +1351,20 @@ function ConvertTo-PwshConfig {
             $Value = Switch ($_) {
                 'markdown_bin' {Write-Verbose "Markdown_bin not needed, stripping setting"}
                 'date_locale' {Write-Verbose "Markdown_bin not needed, stripping setting"}
-                {$_ -in $Incompatible} { 
+                {$_ -in $Incompatible} {
                     Get-DefaultSetting $_
                     Write-Warning "$_ value cannot be converted from bb. Resetting to Pwsh default."
                 }
                 Default {
                     $Value = $Settings[$_]
                     if ($Value -match '^\(') {
-                        $Value.Trim('()').Replace(' ',',')  
+                        $Value.Trim('()').Replace(' ',',')
                     } else { "`"$Value`"" }
                 }
             }
             $HT.Add($_,$Value)
         }
-        
+
     }
     End {
         $HT
