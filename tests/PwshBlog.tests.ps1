@@ -20,7 +20,7 @@ function Get-Editor {
     if ($IsMacOS -or $IsLinux) {
         return '/bin/true'
     } else {
-        return 'c:\windows\system32\icacles.exe'
+        return 'c:\windows\system32\icacls.exe'
     }
 }
 
