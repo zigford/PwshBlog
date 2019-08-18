@@ -1,4 +1,5 @@
-Import-Module PwshBlog
+Import-Module (Join-Path -Path (Split-Path -Path $PSScriptRoot -Parent) `
+    -ChildPath PwshBlog.psm1)
 
 function New-TestPath {
     $TEMP = if ($IsMacOS -or $IsLinux -and $ENV:TMPDIR) {
