@@ -949,11 +949,13 @@ function Update-RSS {
 
 function Get-DefaultFooter {
 
+    $protected_mail =
+        $Script:global_email -replace
+        '@','&#64;'          -replace
+        '\.','&#46;'
 @"
-$($protected_mail=$Script:global_email -replace '@','&#64;')
-$($protected_mail=$protected_mail -replace '\.','&#46;')
 <div id=`"footer`">$Script:global_license <a href=`"$Script:global_author_url`">$Script:global_author</a> &mdash; <a href=`"mailto:$protected_mail`">$protected_mail</a><br/>
-Generated with <a href="https://github.com/zigford/PwshBlog">PwshBlog</a>, a powershell module to easily create blogs like this one</div>'
+Generated with <a href="https://github.com/zigford/PwshBlog">PwshBlog</a>, a powershell module to easily create blogs like this one</div>
 "@
 
 }

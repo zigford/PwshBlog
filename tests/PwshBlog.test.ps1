@@ -36,18 +36,23 @@ Describe "New-BlogConfig" {
 Describe "New-BlogPost" {
     New-TestEnvironment
     $EDITOR=$ENV:EDITOR
-    $ENV:EDITOR = 'true '
+    $ENV:EDITOR = '/bin/true'
     It "Creates a new html post" {
         # New-BlogConfig
         New-BlogPost -Force -Confirm:$False -WarningAction 'SilentlyContinue'|
         Out-Null
-        Compare-Object `
-            (Get-Content title-on-this-line.html) `
-            (Get-Content $PSScriptRoot\title-on-this-line.html) |
-            Where-Object {
-                $_.InputObject -notmatch 'bashblog_timestamp' -and
-                $_.InputObject -notmatch 'subtitle'
-            } | Should be $null
+        $i=0
+        $ComparePost = Get-Content $PSScriptRoot\title-on-this-line.html
+        Get-Content title-on-this-line.html | ForEach-Object {
+            If (
+                    $_ -notmatch 'bashblog_timestamp' -and
+                    $_ -notmatch 'subtitle'
+               )
+            {
+                $_ | Should be $ComparePost[$i]
+                $i++
+            } else { $i++ }
+        }
     }
     $ENV:EDITOR = $EDITOR
     Remove-TestEnvironment
