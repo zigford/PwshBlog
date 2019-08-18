@@ -1,3 +1,5 @@
+[![Master build status][appveyor-badge]][appveyor-build]
+
 PwshBlog
 ========
 
@@ -76,3 +78,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[appveyor-badge]: https://ci.appveyor.com/api/projects/status/x50f93ji0xons8os/branch/master?svg=true
+[appveyor-build]: https://ci.appveyor.com/project/zigford/pwshblog/
