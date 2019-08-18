@@ -3,7 +3,7 @@ skip_commits:
     - '**/*.md'
 
 install:
-  - cinst pester
+    - pwsh: Install-Module -Name Pester -Force
 
 build: off
 
