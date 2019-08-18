@@ -10,7 +10,7 @@ build: off
 test_script:
     - ps: Invoke-Pester -Path .\tests
 
-t_script:
+test_script:
     - ps: |
         $testResultsFile = ".\TestsResults.xml"
         $res = Invoke-Pester -OutputFormat NUnitXml -OutputFile $testResultsFile -PassThru
