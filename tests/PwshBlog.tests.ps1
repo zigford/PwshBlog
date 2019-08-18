@@ -14,6 +14,17 @@ function New-TestPath {
     return (New-Item -ItemType Directory -Path $TEMP -Name (Get-Random))
 }
 
+function Get-Editor {
+    # Get an editor which does nothing
+    # on *nix or Windows
+    if ($IsMacOS -or $IsLinux) {
+        return '/bin/true'
+    } else {
+        return 'c:\windows\system32\icacles.exe'
+    }
+}
+
+
 function New-TestEnvironment {
     $Script:TestRoot = New-TestPath
     Push-Location
@@ -37,7 +48,7 @@ Describe "New-BlogConfig" {
 Describe "New-BlogPost" {
     New-TestEnvironment
     $EDITOR=$ENV:EDITOR
-    $ENV:EDITOR = '/bin/true'
+    $ENV:EDITOR = Get-Editor
     It "Creates a new html post" {
         # New-BlogConfig
         New-BlogPost -Force -Confirm:$False -WarningAction 'SilentlyContinue'|
