@@ -28,10 +28,15 @@ Features
 - Ultra simple usage: Just type a post with your favorite editor and the script does the rest. No templating.
 - No installation required. Download `PwshBlog` and start blogging.
 - Zero dependencies. It runs just on pure Powershell.
-- GNU/Linux, OSX and Windows compatible out of the box as long as powershell is installed
+- GNU/Linux, OSX and Windows compatible out of the box as long as powershell 6.1+ is installed
 - All content is static. You only need shell access to a machine with a public web folder.
 - Support for tags/categories
-- Support for Markdown, Disqus comments, Twitter, Feedburner, Google Analytics.
+- Support for Markdown
+
+Coming soon
+-----------
+
+Disqus comments, Twitter, Feedburner, Google Analytics.
 
 Configuration
 -------------
@@ -53,6 +58,12 @@ per line, just like in the `Get-GlobalVariables` function.
 You can also create a default one using: `New-BlogConfig`
 
 PwshBlog uses the `$EDITOR` environment value to open the text editor.
+
+Examples:
+
+`$ENV:EDITOR = 'C:\windows\system32\notepad.exe'`
+or
+`$ENV:EDITOR = '/usr/bin/vim'`
 
 
 Detailed features
