@@ -1,0 +1,8 @@
+# exclude .gitignore and similar from the generated tarball
+.git/ export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+# exclude CI configurations (useless outside the repo)
+appveyor.yml export-ignore
+# exclude tests
+tests/ export-ignore
